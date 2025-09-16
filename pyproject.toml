@@ -1,0 +1,30 @@
+[project]
+name = "rcav2"
+version = "0.1.0"
+license = "Apache-2.0"
+description = "RCA MCP"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.116.1",
+    "fastapi[standard]",
+    "httpx>=0.28.1",
+    "httpx-gssapi>=0.4",
+    "httpx-ws>=0.7.2",
+]
+
+[dependency-groups]
+dev = [
+    "llm>=0.27.1",
+    "llm-gemini>=0.25",
+    "pytest>=8.4.1",
+    "ruff>=0.11.12",
+    "ty>=0.0.1a7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+rcav2 = "rcav2.__main__:main"
