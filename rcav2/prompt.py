@@ -8,7 +8,7 @@ def report_to_prompt(report: rcav2.errors.Report) -> str:
     """Convert a report to a LLM prompt
 
     >>> report_to_prompt(rcav2.errors.json_to_report(TEST_REPORT))
-    "The following errors are from a Zuul job named tox:\\n\\n## {'RawFile': {'Remote': [12, 'example.com/zuul/overcloud.log']}}\\noops"
+    'The following errors are from a Zuul job named tox:\\n\\n## zuul/overcloud.log\\noops'
     """
     lines = [f"The following errors are from a {report.target}:", ""]
     for logfile in report.logfiles:

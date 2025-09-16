@@ -66,7 +66,10 @@ def read_error(anomaly) -> Error:
 
 
 def read_logfile(log_report) -> LogFile:
-    return LogFile(log_report["source"], list(map(read_error, log_report["anomalies"])))
+    return LogFile(
+        read_source(log_report["source"]),
+        list(map(read_error, log_report["anomalies"])),
+    )
 
 
 def json_to_report(report) -> Report:
