@@ -6,98 +6,145 @@ function createReport(url) {
   const reportContainer = document.getElementById("report-container");
   const messageArea = document.getElementById("message-area");
 
-  function showMessage(message, type = 'info') {
+  let currentListItem;
+  let llmOutputContainer;
+
+  function showMessage(message, type = "info") {
     messageArea.textContent = message;
-    messageArea.classList.remove('bg-blue-100', 'text-blue-800', 'bg-red-100', 'text-red-800');
-    if (type === 'info') {
-      messageArea.classList.add('bg-blue-100', 'text-blue-800');
-    } else if (type === 'error') {
-      messageArea.classList.add('bg-red-100', 'text-red-800');
+    messageArea.classList.remove(
+      "bg-blue-100",
+      "text-blue-800",
+      "bg-red-100",
+      "text-red-800",
+    );
+    if (type === "info") {
+      messageArea.classList.add("bg-blue-100", "text-blue-800");
+    } else if (type === "error") {
+      messageArea.classList.add("bg-red-100", "text-red-800");
     }
-    messageArea.style.display = 'block';
+    messageArea.style.display = "block";
+  }
+
+  function showError(message) {
+    const newElement = document.createElement("li");
+    newElement.textContent = `Error: ${message}`;
+    newElement.classList.add("text-red-800", "bg-red-100", "p-2", "rounded-md");
+    eventsList.appendChild(newElement);
+    currentListItem = null;
+    llmOutputContainer = null;
+  }
+
+  function showChunk(chunk) {
+    if (!currentListItem) {
+      currentListItem = document.createElement("li");
+      llmOutputContainer = document.createElement("div");
+      llmOutputContainer.classList.add(
+        "whitespace-pre-wrap",
+        "bg-gray-50",
+        "p-3",
+        "rounded-md",
+      );
+      currentListItem.appendChild(llmOutputContainer);
+      eventsList.appendChild(currentListItem);
+    }
+    llmOutputContainer.textContent += chunk;
+  }
+
+  function showProgress(msg) {
+    const newElement = document.createElement("li");
+    newElement.textContent = msg;
+    newElement.classList.add("font-semibold");
+    eventsList.appendChild(newElement);
+    currentListItem = null;
+    llmOutputContainer = null;
+  }
+
+  function handleEvent(body, event) {
+    if (event == "status") {
+      if (body == "completed") {
+        showMessage("Analysis complete.", "info");
+      } else {
+        showError(body);
+      }
+    } else if (event == "progress") {
+      showProgress(body);
+    } else if (event == "chunk") {
+      showChunk(body);
+    }
+  }
+
+  function showCompleted(url) {
+    showMessage("Build completed. Fetching report...", "info");
+    fetch("/report?build=" + url)
+      .then((resp) => {
+        if (!resp.ok) {
+          throw new Error(`Server responded with status ${resp.status}`);
+        }
+        return resp.json();
+      })
+      .then((report) => {
+        // eventsList.style.display = "none";
+        // reportContainer.innerHTML = marked.parse(report);
+        for (const [event, body] of report) {
+          handleEvent(body, event);
+        }
+        showMessage("Report loaded successfully.", "info");
+      })
+      .catch((err) => {
+        console.error("Failed to fetch report:", err);
+        showMessage(`Failed to fetch report: ${err.message}`, "error");
+      });
   }
 
   if (!url) {
-    showMessage("No build URL provided. Add '?build=<URL>' to the page URL.", 'error');
+    showMessage(
+      "No build URL provided. Add '?build=<URL>' to the page URL.",
+      "error",
+    );
   } else {
-    showMessage("Submitting build for analysis...", 'info');
+    showMessage("Submitting build for analysis...", "info");
     fetch("/submit?build=" + url, { method: "PUT" })
-      .then(resp => {
-        if (!resp.ok) throw new Error(`Server responded with status ${resp.status}`);
+      .then((resp) => {
+        if (!resp.ok) {
+          throw new Error(`Server responded with status ${resp.status}`);
+        }
         return resp.json();
       })
-      .then(build => {
+      .then((build) => {
         if (build.status === "PENDING") {
-          showMessage("Build is pending. Streaming logs...", 'info');
-          eventsList.style.display = 'block';
-          reportContainer.innerHTML = '';
+          showMessage("Build is pending. Streaming logs...", "info");
+          eventsList.style.display = "block";
+          reportContainer.innerHTML = "";
 
           const evtSource = new EventSource("/watch?build=" + url);
-          let currentListItem;
-          let llmOutputContainer;
-
-          evtSource.addEventListener('status', function (e) {
-            const newElement = document.createElement("li");
-            newElement.textContent = e.data;
-            newElement.classList.add('font-semibold');
-            eventsList.appendChild(newElement);
-            currentListItem = null; // Reset for next LLM output
-            llmOutputContainer = null;
-          });
-
-          evtSource.addEventListener('chunk', function (e) {
-            if (!currentListItem) {
-              currentListItem = document.createElement("li");
-              llmOutputContainer = document.createElement("div");
-              llmOutputContainer.classList.add("whitespace-pre-wrap", "bg-gray-50", "p-3", "rounded-md");
-              currentListItem.appendChild(llmOutputContainer);
-              eventsList.appendChild(currentListItem);
+          evtSource.onmessage = (ev) => {
+            const [event, body] = JSON.parse(ev.data);
+            handleEvent(body, event);
+            if (event == "status") {
+              evtSource.close();
+            } else if (event == "redirect") {
+              evtSource.close();
+              showCompleted(url);
             }
-            llmOutputContainer.textContent += e.data;
-          });
-
-          evtSource.addEventListener('error', function (e) {
-            const newElement = document.createElement("li");
-            newElement.textContent = `Error: ${e.data}`;
-            newElement.classList.add('text-red-800', 'bg-red-100', 'p-2', 'rounded-md');
-            eventsList.appendChild(newElement);
-            currentListItem = null;
-            llmOutputContainer = null;
-          });
-
-          evtSource.addEventListener('done', function (e) {
-            showMessage("Analysis complete.", 'info');
-            evtSource.close();
-          });
+          };
 
           evtSource.onerror = (error) => {
             console.error("EventSource failed:", error);
-            showMessage("Error receiving build events. The connection was closed.", 'error');
+            showMessage(
+              "Error receiving build events. The connection was closed.",
+              "error",
+            );
             evtSource.close();
           };
         } else if (build.status === "COMPLETED") {
-          showMessage("Build completed. Fetching report...", 'info');
-          fetch("/report?build=" + url)
-            .then(resp => {
-              if (!resp.ok) throw new Error(`Server responded with status ${resp.status}`);
-              return resp.text();
-            })
-            .then(report => {
-              eventsList.style.display = 'none';
-              reportContainer.innerHTML = marked.parse(report);
-              showMessage("Report loaded successfully.", 'info');
-            })
-            .catch(err => {
-              console.error("Failed to fetch report:", err);
-              showMessage(`Failed to fetch report: ${err.message}`, 'error');
-            });
+          showCompleted(url);
         } else {
-          showMessage(`Unknown build status: ${build.status}`, 'error');
+          showMessage(`Unknown build status: ${build.status}`, "error");
         }
       })
-      .catch(err => {
+      .catch((err) => {
         console.error("Failed to submit build:", err);
-        showMessage(`Failed to submit build: ${err.message}`, 'error');
+        showMessage(`Failed to submit build: ${err.message}`, "error");
       });
   }
 }

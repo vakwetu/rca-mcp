@@ -8,15 +8,18 @@ This module defines a Pool object to manage job pub/sub
 import asyncio
 from abc import ABCMeta, abstractmethod
 
+type Body = str | bool | int | dict
+type Event = tuple[str, Body]
+
 
 class Watcher:
     def __init__(self):
         self.queue = asyncio.Queue()
 
-    async def send(self, message: tuple[str, str]):
-        await self.queue.put(message)
+    async def send(self, event: Event):
+        await self.queue.put(event)
 
-    async def recv(self) -> tuple[str, str]:
+    async def recv(self) -> Event:
         event = await self.queue.get()
         self.queue.task_done()
         return event
@@ -27,10 +30,10 @@ class Worker:
 
     def __init__(self) -> None:
         self.watchers: list[Watcher] = []
-        self.history: list[tuple[str, str]] = []
+        self.history: list[Event] = []
 
-    async def emit(self, message: str, event: str) -> None:
-        item = (event, message)
+    async def emit(self, body: Body, event: str) -> None:
+        item = (event, body)
         self.history.append(item)
         for watcher in self.watchers:
             await watcher.send(item)
@@ -96,19 +99,3 @@ class Pool:
             self.queue.task_done()
             self.completed[key] = job
             del self.pending[key]
-
-
-class Dummy(Job):
-    def __init__(self, url: str):
-        self.url = url
-
-    @property
-    def job_key(self) -> str:
-        return self.url
-
-    async def run(self, worker: Worker):
-        await worker.emit("log", "starting...")
-        for x in range(5):
-            await asyncio.sleep(0.1)
-            await worker.emit("log", f"performing step {x}...")
-        await worker.emit("completed", "done!")

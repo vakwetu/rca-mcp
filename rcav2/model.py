@@ -19,7 +19,7 @@ def query(env, output, model, system, prompt):
 async def stream(env, model, system, prompt):
     env.log.info("Analyzing build with %s using %s bytes", model, len(prompt))
     model = llm.get_async_model(model)
-    response = await model.prompt(prompt, system=system)
+    response = model.prompt(prompt, system=system)
     async for chunk in response:
         yield (chunk, "chunk")
     usage = await response.usage()
