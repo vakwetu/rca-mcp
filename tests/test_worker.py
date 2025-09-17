@@ -31,6 +31,7 @@ class TestPool(unittest.IsolatedAsyncioTestCase):
 
     async def test_pool(self) -> None:
         await self.pool.submit(Dummy("test"))
-        await asyncio.sleep(1)
-        job = self.pool.completed.get("test")
-        self.assertIsNotNone(job)
+        watcher = await self.pool.watch("test")
+        for i in range(7):
+            (ev, _) = await watcher.recv()
+        self.assertEqual(ev, "status")

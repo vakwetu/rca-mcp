@@ -25,7 +25,7 @@ class Report(Base):
 
 
 def create(path: str) -> Engine:
-    engine = create_engine(f"sqlite://{path}", echo=True)
+    engine = create_engine(f"sqlite:///{path}", echo=True)
     Base.metadata.create_all(engine)
     return engine
 

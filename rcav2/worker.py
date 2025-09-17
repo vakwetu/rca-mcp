@@ -61,7 +61,6 @@ class Pool:
     def __init__(self, max_worker: int):
         self.queue: asyncio.Queue = asyncio.Queue()
         self.pending: dict[str, tuple[Worker, Job]] = dict()
-        self.completed: dict[str, Job] = dict()  # TODO: store this in a database
         self.workers = []
         for i in range(max_worker):
             task = asyncio.create_task(self.worker())
@@ -72,16 +71,12 @@ class Pool:
             worker.cancel()
         await asyncio.gather(*self.workers, return_exceptions=True)
 
-    async def submit(self, job: Job) -> str:
+    async def submit(self, job: Job):
         key = job.job_key
-        if self.completed.get(key):
-            return "COMPLETED"
-        else:
-            if not self.pending.get(key):
-                worker_job = (Worker(), job)
-                self.pending[key] = worker_job
-                await self.queue.put(worker_job)
-            return "PENDING"
+        if not self.pending.get(key):
+            worker_job = (Worker(), job)
+            self.pending[key] = worker_job
+            await self.queue.put(worker_job)
 
     async def watch(self, key: str) -> Watcher | None:
         if self.pending.get(key):
@@ -97,5 +92,4 @@ class Pool:
             key = job.job_key
             await job.run(worker)
             self.queue.task_done()
-            self.completed[key] = job
             del self.pending[key]

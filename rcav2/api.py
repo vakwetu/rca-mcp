@@ -9,24 +9,24 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-from typing import cast
 import json
 
 import rcav2.logjuicer
 import rcav2.env
 import rcav2.model
 import rcav2.prompt
-from rcav2.worker import Pool, Worker, Job, Event
+import rcav2.database
+from rcav2.worker import Pool, Worker, Job
 from rcav2.config import DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT
 
 
 class RCAJob(Job):
     """Perform RCA on the given build URL"""
 
-    def __init__(self, env: rcav2.env.Env, url: str):
+    def __init__(self, env: rcav2.env.Env, db: rcav2.database.Engine, url: str):
         self.url = url
         self.env = env
-        self.result: list[Event] = []
+        self.db = db
 
     @property
     def job_key(self) -> str:
@@ -53,7 +53,11 @@ class RCAJob(Job):
             await worker.emit(f"Analysis failed: {e}", event="status")
 
         # TODO: maybe compact the chunk in a single 'llm_response' event?
-        self.result = list(filter(lambda msg: msg[0] != "progress", worker.history))
+        rcav2.database.set(
+            self.db,
+            self.url,
+            json.dumps(list(filter(lambda msg: msg[0] != "progress", worker.history))),
+        )
 
 
 @asynccontextmanager
@@ -61,6 +65,7 @@ async def lifespan(app: FastAPI):
     # setup
     app.state.env = rcav2.env.Env(debug=True)
     app.state.worker_pool = Pool(2)
+    app.state.db = rcav2.database.create(".db.sqlite3")
     yield
     # teardown
     await app.state.worker_pool.stop()
@@ -77,16 +82,22 @@ def get_pool(request: Request) -> Pool:
 @app.get("/report")
 def report(request: Request, build: str):
     """Return completed report"""
-    if report := get_pool(request).completed.get(build):
-        return cast(RCAJob, report).result
+    if events := rcav2.database.get(request.app.state.db, build):
+        return json.loads(events)
     return dict(status="Report not found")
 
 
 @app.put("/submit")
 async def submit(request: Request, build: str):
     """Submit the build"""
-    status = await get_pool(request).submit(RCAJob(request.app.state.env, build))
-    return dict(status=status)
+    pool = get_pool(request)
+    if pool.pending.get(build):
+        return dict(status="PENDING")
+    db = request.app.state.db
+    if rcav2.database.get(db, build):
+        return dict(status="COMPLETED")
+    await pool.submit(RCAJob(request.app.state.env, db, build))
+    return dict(status="PENDING")
 
 
 @app.get("/watch")

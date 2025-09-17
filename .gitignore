@@ -7,3 +7,4 @@ venv/
 .cookie
 .report.json
 .prompt.txt
+.db.sqlite3
