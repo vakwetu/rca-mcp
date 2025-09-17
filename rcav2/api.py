@@ -35,7 +35,7 @@ class RCAJob(Job):
     async def run(self, worker: Worker):
         try:
             await worker.emit("Fetching build report...", event="progress")
-            report = await rcav2.logjuicer.get_remote_report(self.env, self.url)
+            report = await rcav2.logjuicer.get_remote_report(self.env, self.url, worker)
 
             await worker.emit("Generating prompt...", event="progress")
             prompt = rcav2.prompt.report_to_prompt(report)

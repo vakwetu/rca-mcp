@@ -3,6 +3,7 @@
 
 from rcav2.errors import Report
 from rcav2.env import Env
+from rcav2.worker import Worker
 import rcav2.errors
 
 
@@ -20,7 +21,7 @@ def make_local_report(url: str) -> Report:
     )
 
 
-async def wait_report(env: Env, wurl: str, report_id: int):
+async def wait_report(env: Env, wurl: str, report_id: int, worker: None | Worker):
     import httpx_ws
 
     wurl = f"{wurl}/logjuicer/wsapi/report/{report_id}"
@@ -38,7 +39,10 @@ async def wait_report(env: Env, wurl: str, report_id: int):
                     case "Done":
                         break
                     case _:
-                        print(ev)
+                        if worker:
+                            await worker.emit(ev, event="progress")
+                        else:
+                            print(ev)
     except httpx_ws.WebSocketUpgradeError as e:
         if e.response.status_code == 404:
             # The report must have been already created.
@@ -47,7 +51,7 @@ async def wait_report(env: Env, wurl: str, report_id: int):
             raise
 
 
-async def do_get_remote_report(env: Env, url: str) -> Report:
+async def do_get_remote_report(env: Env, url: str, worker: None | Worker) -> Report:
     from rcav2.config import SF_URL
 
     # Step1: request report
@@ -56,12 +60,15 @@ async def do_get_remote_report(env: Env, url: str) -> Report:
     create_resp = (await env.httpx.put(curl, auth=env.auth)).raise_for_status()
     [report_id, status] = create_resp.json()
 
+    if worker:
+        report_url = f"{SF_URL}/logjuicer/report/{report_id}"
+        await worker.emit(report_url, event="logjuicer_url")
     # Step2: wait for status, from: https://github.com/logjuicer/logjuicer/blob/ba53c7566797cec44a8064dc905c3f78743045c0/crates/report/src/report_row.rs#L47-L51
     match status:
         case "Pending":
             env.log.info("%s: Waiting for errors report %s", url, report_id)
             wurl = "wss" + SF_URL[len("https") :]
-            await wait_report(env, wurl, report_id)
+            await wait_report(env, wurl, report_id, worker)
         case "Completed":
             pass
         case error:
@@ -73,7 +80,7 @@ async def do_get_remote_report(env: Env, url: str) -> Report:
     return rcav2.errors.json_to_report(report)
 
 
-async def get_remote_report(env: Env, url: str) -> Report:
+async def get_remote_report(env: Env, url: str, worker: None | Worker) -> Report:
     import rcav2.auth
     import httpx_ws
 
@@ -84,7 +91,7 @@ async def get_remote_report(env: Env, url: str) -> Report:
     # So we can safely retry in that case, because the step1 status will have progressed.
     while True:
         try:
-            return await do_get_remote_report(env, url)
+            return await do_get_remote_report(env, url, worker)
         except httpx_ws.WebSocketNetworkError as e:
             env.log.error("WS error :/", e)
 
