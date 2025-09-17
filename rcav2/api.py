@@ -42,7 +42,7 @@ class RCAJob(Job):
 
             await worker.emit("Analyzing build with LLM...", event="progress")
 
-            async for message, event in rcav2.model.stream(
+            async for message, event in rcav2.model.query(
                 self.env, DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, prompt
             ):
                 await worker.emit(message, event)
