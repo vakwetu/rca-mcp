@@ -87,7 +87,6 @@ function createReport(url) {
       })
       .then((report) => {
         eventsList.style.display = "none";
-        reportContainer.innerHTML = marked.parse(report);
         for (const [event, body] of report) {
           handleEvent(body, event);
         }
