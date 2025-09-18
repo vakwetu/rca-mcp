@@ -1,17 +1,32 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAADsAAABAAgMAAADZruciAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAMUExURf///wAAAP////8AALaxXBEAAAABdFJOUwBA5thmAAAAAWJLR0QAiAUdSAAAAAd0SU1FB+kJEgwuGvXgFL0AAAEfSURBVCjPxdI9TsNAEAXgRySQkoomN8CFb5EjpBmvk8YpYik5xfoINPQUuOE+K06yooqW/fdMhETJNPGnvBnv2MYz8LjDFthviWiPmXhd8Cbc/48H4yy3ds5xe6YAs7u3qVZ/eHBl4O9W0sOXsHJGeHAmDrhVW1Ucnq/2Sc3+1+HK+9uUvD+a71C2Ou6qXOif42kWj9E2ntrQGU3a3oSHZugUrF0um6zuTNxt3T8MecWaloChKTkHqDjd4kbdhFV6kSneoThuHfzAX/gBEB9A7z0yn70b5pP3mnny3izsglfMgLhBHz2K8Ygbp3qP3ohxfmAZcESqOfuS3Yr2OiC315UPKNWIeG6o8dxwxVKtiMcjHcHrSh/CT587Ybzk3x+trInJVt1SzgAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyNS0wOS0xOFQxMjo0NTowNSswMDowMJR4m78AAAAldEVYdGRhdGU6bW9kaWZ5ADIwMjUtMDktMThUMTI6NDU6MDUrMDA6MDDlJSMDAAAAKHRFWHRkYXRlOnRpbWVzdGFtcAAyMDI1LTA5LTE4VDEyOjQ2OjI2KzAwOjAwKsqkPwAAAABJRU5ErkJggg==" />
 
-<head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/png" href="/logo.png" />
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RCAv2</title>
-</head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RCAv2</title>
+  </head>
 
-<body>
-  <div id="root"></div>
-  <script type="module" src="/main.tsx"></script>
-</body>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import {
+        createElement,
+        StrictMode,
+        useEffect,
+        useState,
+      } from "react";
+      import { createRoot } from "react-dom/client";
+      import { RcaComponent } from "./frontend/RcaComponent.tsx";
 
+      createRoot(document.getElementById("root")).render(
+        createElement(
+          StrictMode,
+          {},
+          createElement(RcaComponent, {}, null),
+        ),
+      );
+    </script>
+  </body>
 </html>

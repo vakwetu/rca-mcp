@@ -7,7 +7,7 @@ interface RcaComponentProps {
   backendUrl?: string;
 }
 
-function RcaComponent({ backendUrl = '' }: RcaComponentProps) {
+export function RcaComponent({ backendUrl = '' }: RcaComponentProps) {
   const [buildUrl, setBuildUrl] = useState('');
   const [status, setStatus] = useState<string[]>([]);
   const [result, setResult] = useState('');
@@ -142,5 +142,3 @@ function RcaComponent({ backendUrl = '' }: RcaComponentProps) {
     </div>
   );
 }
-
-export default RcaComponent;
