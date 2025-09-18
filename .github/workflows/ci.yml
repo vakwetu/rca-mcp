@@ -34,6 +34,6 @@ jobs:
       run: uv sync
 
     - name: Run Makefile target for testing
-      run: make ci
+      run: mkdir -p dist && make ci
       env:
         SF_DOMAIN: "example.com"
