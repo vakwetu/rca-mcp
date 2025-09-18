@@ -20,3 +20,8 @@ frontend-dev:
 .PHONY: frontend-build
 frontend-build:
 	npm run build
+
+.PHONY: release
+release:
+	npm run release
+	uv build

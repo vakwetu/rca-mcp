@@ -18,7 +18,8 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "env VITE_STANDALONE=1 vite build",
+    "release": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {

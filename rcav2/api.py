@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-app.mount("/static", StaticFiles(directory="rcav2/static"), name="static")
+app.mount("/", StaticFiles(directory="dist", html=True), name="static")
 
 
 def get_pool(request: Request) -> Pool:
@@ -117,8 +117,3 @@ async def watch(request: Request, build: str):
                 break
 
     return StreamingResponse(watch_build(), media_type="text/event-stream")
-
-
-@app.get("/", response_class=HTMLResponse)
-async def read_root():
-    return FileResponse("rcav2/static/index.html")
