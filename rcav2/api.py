@@ -70,7 +70,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-app.mount("/", StaticFiles(directory="dist", html=True), name="static")
 
 
 def get_pool(request: Request) -> Pool:
@@ -115,3 +114,6 @@ async def watch(request: Request, build: str):
                 break
 
     return StreamingResponse(watch_build(), media_type="text/event-stream")
+
+
+app.mount("/", StaticFiles(directory="dist", html=True), name="static")
