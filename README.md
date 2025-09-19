@@ -24,6 +24,7 @@ uv sync
 
 To use the command-line tool, run:
 ```ShellSession
+$ export SF_DOMAIN=sf.apps.int.gpc.ocp-hub.prod.psi.redhat.com
 $ uv run rcav2 --help
 ```
 
