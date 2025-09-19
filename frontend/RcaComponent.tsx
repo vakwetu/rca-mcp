@@ -7,8 +7,8 @@ interface RcaComponentProps {
   backendUrl?: string;
 }
 
-export function RcaComponent({ backendUrl = '' }: RcaComponentProps) {
-  const [buildUrl, setBuildUrl] = useState('');
+export function RcaComponent({ build = '', backendUrl = '' }: RcaComponentProps) {
+  const [buildUrl, setBuildUrl] = useState(build);
   const [status, setStatus] = useState<string[]>([]);
   const [result, setResult] = useState('');
   const [error, setError] = useState('');
