@@ -21,6 +21,12 @@ export function RcaComponent(
     setResult("");
     setError("");
 
+    if (!build) {
+      setStatus(
+        (_) => ["Build is missing, try adding ?build=... to the page url."]
+      );
+      return;
+    }
     let eventSource;
     if (eventSource) {
       eventSource.close();
