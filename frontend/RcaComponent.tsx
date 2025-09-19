@@ -1,90 +1,105 @@
-import React, { useState, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import './RcaComponent.css';
+import React, { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import "./RcaComponent.css";
 
 interface RcaComponentProps {
+  build: string;
   backendUrl?: string;
 }
 
-export function RcaComponent({ build = '', backendUrl = '' }: RcaComponentProps) {
-  const [buildUrl, setBuildUrl] = useState(build);
+export function RcaComponent(
+  { build = "", backendUrl = "" }: RcaComponentProps,
+) {
   const [status, setStatus] = useState<string[]>([]);
-  const [result, setResult] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState("");
+  const [error, setError] = useState("");
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!buildUrl || isLoading) return;
-
-    setIsLoading(true);
+  async function getReport() {
     setStatus([]);
-    setResult('');
-    setError('');
+    setResult("");
+    setError("");
 
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+    let eventSource;
+    if (eventSource) {
+      eventSource.close();
+    }
+
+    function handleMessage(event, body) {
+      switch (event) {
+        case "progress":
+          setStatus((prevStatus) => [...prevStatus, body]);
+          break;
+        case "chunk":
+          setResult((prevResult) => prevResult + body);
+          break;
+        case "status":
+          console.log("Setting status", body);
+          if (body != "completed") {
+            setError(body);
+          }
+          if (eventSource) {
+            eventSource.close();
+          }
+          eventSource = null;
+          break;
+      }
     }
 
     try {
-      const submitRes = await fetch(`${backendUrl}/submit?build=${encodeURIComponent(buildUrl)}`, {
-        method: 'PUT',
-      });
+      const submitRes = await fetch(
+        `${backendUrl}/submit?build=${encodeURIComponent(build)}`,
+        {
+          method: "PUT",
+        },
+      );
 
       const submitData = await submitRes.json();
 
-      if (submitData.status === 'COMPLETED') {
-        const reportRes = await fetch(`${backendUrl}/report?build=${encodeURIComponent(buildUrl)}`);
+      if (submitData.status === "COMPLETED") {
+        const reportRes = await fetch(
+          `${backendUrl}/report?build=${encodeURIComponent(build)}`,
+        );
         if (!reportRes.ok) {
-          throw new Error('Failed to fetch completed report');
+          throw new Error("Failed to fetch completed report");
         }
         const reportJson = await reportRes.json();
-        const fullReport = reportJson
-          .filter(([event]: [string, string]) => event === 'chunk')
-          .map(([, body]: [string, string]) => body)
-          .join('');
-        setResult(fullReport);
-        setIsLoading(false);
+        reportJson.forEach(([event, body]) => {
+          handleMessage(event, body);
+        });
         return;
       }
 
-      const eventSource = new EventSource(`${backendUrl}/watch?build=${encodeURIComponent(buildUrl)}`);
-      eventSourceRef.current = eventSource;
+      eventSource = new EventSource(
+        `${backendUrl}/watch?build=${encodeURIComponent(build)}`,
+      );
 
       eventSource.onmessage = (e) => {
         const [event, body] = JSON.parse(e.data);
-        switch (event) {
-          case 'progress':
-            setStatus((prevStatus) => [...prevStatus, body]);
-            break;
-          case 'chunk':
-            setResult((prevResult) => prevResult + body);
-            break;
-          case 'status':
-            setIsLoading(false);
-            eventSource.close();
-            eventSourceRef.current = null;
-            break;
-        }
+        handleMessage(event, body);
       };
 
       eventSource.onerror = () => {
-        setError('Failed to connect to the server. Please ensure the backend is running and accessible.');
-        setIsLoading(false);
+        setError(
+          "Failed to connect to the server. Please ensure the backend is running and accessible.",
+        );
         if (eventSourceRef.current) {
           eventSourceRef.current.close();
           eventSourceRef.current = null;
         }
       };
-
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-      setIsLoading(false);
+      console.error("RCA failed", err);
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred.",
+      );
     }
-  };
-
+  }
+  useEffect(() => {
+    getReport();
+    return () => {};
+  }, [build]);
   return (
     <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 transition-colors duration-300">
       <div className="w-full max-w-4xl">
@@ -92,35 +107,20 @@ export function RcaComponent({ build = '', backendUrl = '' }: RcaComponentProps)
           <h1 className="text-4xl font-bold text-center">RCAv2</h1>
         </header>
         <main className="w-full flex flex-col items-center gap-6">
-          <form onSubmit={handleSubmit} className="w-full flex flex-col sm:flex-row gap-4">
-            <input
-              type="url"
-              value={buildUrl}
-              onChange={(e) => setBuildUrl(e.target.value)}
-              placeholder="Enter build URL"
-              required
-              disabled={isLoading}
-              className="flex-grow bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-50 transition-colors duration-300"
-            />
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed transition-transform duration-200 active:scale-95"
-            >
-              {isLoading ? 'Analyzing...' : 'Analyze'}
-            </button>
-          </form>
-
           {error && (
             <div className="w-full bg-red-50 dark:bg-gray-800 border border-red-500 rounded-md p-4">
-              <h2 className="text-xl font-semibold text-red-700 dark:text-red-400 border-b border-red-200 dark:border-gray-700 pb-2 mb-3">Error</h2>
+              <h2 className="text-xl font-semibold text-red-700 dark:text-red-400 border-b border-red-200 dark:border-gray-700 pb-2 mb-3">
+                Error
+              </h2>
               <pre className="text-red-600 dark:text-red-300 whitespace-pre-wrap break-words font-mono">{error}</pre>
             </div>
           )}
 
           {status.length > 0 && (
             <div className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-4">
-              <h2 className="text-xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3">Analysis Status</h2>
+              <h2 className="text-xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3">
+                Analysis Status
+              </h2>
               <ul className="list-none p-0 m-0 font-mono text-sm">
                 {status.map((msg, index) => (
                   <li key={index} className="pt-1">{msg}</li>
@@ -131,9 +131,13 @@ export function RcaComponent({ build = '', backendUrl = '' }: RcaComponentProps)
 
           {result && (
             <div className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-4">
-              <h2 className="text-xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3">Analysis Result</h2>
+              <h2 className="text-xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3">
+                Analysis Result
+              </h2>
               <div className="prose dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{result}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {result}
+                </ReactMarkdown>
               </div>
             </div>
           )}
