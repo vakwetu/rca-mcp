@@ -34,13 +34,12 @@ async def amain():
     prompt = rcav2.prompt.report_to_prompt(report)
     with open(".prompt.txt", "w") as f:
         f.write(prompt)
-    async for message, event in rcav2.model.stream(
-        env, args.model, args.system, prompt
-    ):
+    async for message, event in rcav2.model.query(env, args.model, args.system, prompt):
         if event == "chunk":
             print(message, end="", file=sys.stdout)
         elif event == "usage":
-            env.log.info("Request usage: %s -> %s", usage["input"], usage["output"])
+            print()
+            env.log.info("Request usage: %s -> %s", message["input"], message["output"])
 
 
 def main():
