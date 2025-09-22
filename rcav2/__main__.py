@@ -22,13 +22,12 @@ def usage():
     return parser.parse_args()
 
 
-async def run(args, env):
-    args = usage()
+async def run(args, env: rcav2.env.Env):
     env = rcav2.env.Env(args.debug)
     if args.local_logjuicer:
         report = await rcav2.logjuicer.get_report(env, args.URL)
     else:
-        report = await rcav2.logjuicer.get_remote_report(env, args.URL)
+        report = await rcav2.logjuicer.get_remote_report(env, args.URL, None)
     with open(".report.json", "w") as f:
         f.write(rcav2.logjuicer.dump_report(report))
     prompt = rcav2.prompt.report_to_prompt(report)
