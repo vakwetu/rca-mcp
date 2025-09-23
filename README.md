@@ -11,6 +11,8 @@ On Fedora, you can install it with:
 sudo dnf install -y uv
 ```
 
+This project requires access to gemini as it utilizes their llm.  The api key can be retrieved from [bitwarden](https://vault.bitwarden.com/).  You must be part of the Red Hat, Inc. vault to access the key. Please see https://redhat.service-now.com/help?id=kb_article_view&sysparm_article=KB0010984 for instructions.
+
 ## Installation
 
 To install the project dependencies, run the following command in the root directory:
@@ -25,6 +27,7 @@ uv sync
 To use the command-line tool, run:
 ```ShellSession
 $ export SF_DOMAIN=sf.apps.int.gpc.ocp-hub.prod.psi.redhat.com
+$ export LLM_GEMINI_KEY=<api key from bitwarden>
 $ uv run rcav2 --help
 ```
 
