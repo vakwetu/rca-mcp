@@ -8,5 +8,6 @@ venv/
 .report.json
 .prompt.txt
 .db.sqlite3
+.zuul-export.json
 node_modules
 /dist
