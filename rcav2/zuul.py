@@ -5,6 +5,7 @@ import asyncio
 from dataclasses import dataclass
 
 import rcav2.auth
+import rcav2.git
 from rcav2.env import Env
 
 
@@ -51,6 +52,17 @@ class ProviderInfo:
                 print(f"Unknown provider: {self}")
         return None
 
+    def git_url(self, project: str) -> str | None:
+        match self.kind:
+            case "GitlabUrl" | "GithubUrl" | "GerritUrl":
+                url = self.url.rstrip("/r").lstrip("https://").rstrip("/")
+                return f"git@{url}:{project}.git"
+            case "GitUrl":
+                return f"{self.url.rstrip('/')}/{project}"
+            case _:
+                print(f"Unknown provider: {self}")
+                return None
+
 
 @dataclass
 class ZuulInfo:
@@ -66,6 +78,12 @@ class ZuulInfo:
             return self.providers[project.provider].http_url(
                 job.project, project.branch, path
             )
+        else:
+            return None
+
+    def project_git(self, project_name: str) -> str | None:
+        if project := self.projects.get(project_name):
+            return self.providers[project.provider].git_url(project_name)
         else:
             return None
 
@@ -115,6 +133,18 @@ def print_job_url(info: ZuulInfo, job_name: str):
         print_job_url(info, parent)
 
 
+async def fetch_job_repos(info: ZuulInfo, job_name: str):
+    job = info.jobs.get(job_name)
+    if not job:
+        print(f"Unknown job: {job_name}")
+        return
+    if url := info.project_git(job.project):
+        print(f"{job_name}: {url}")
+        await rcav2.git.ensure_repo(url)
+    if parent := job.parent:
+        await fetch_job_repos(info, parent)
+
+
 async def amain() -> None:
     import json
     import sys
@@ -130,6 +160,8 @@ async def amain() -> None:
     match sys.argv:
         case [_, "url", job_name]:
             print_job_url(info, job_name)
+        case [_, "prepare-workspace", job_name]:
+            await fetch_job_repos(info, job_name)
         case _:
             print("usage: url job")
 

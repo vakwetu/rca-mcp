@@ -31,9 +31,11 @@ async def ensure_repo(url: str, update: bool = False) -> Path:
     path = url_to_path(url).expanduser()
     if (path / ".git").exists():
         if update:
+            print(f"Updating {path}...")
             await run_check(["git", "fetch"], cwd=path)
             await run_check(["git", "reset", "--hard", "FETCH_HEAD"], cwd=path)
     else:
+        print(f"Cloning {path}...")
         path.parent.mkdir(parents=True, exist_ok=True)
         await run_check(["git", "clone", url, str(path)])
     return path
