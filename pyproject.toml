@@ -15,6 +15,7 @@ dependencies = [
     "llm>=0.27.1",
     "llm-gemini>=0.25",
     "pyyaml>=6.0.2",
+    "dspy>=3.0.3",
 ]
 
 [dependency-groups]
