@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import asyncio
+from pathlib import Path
 from dataclasses import dataclass
 
 import rcav2.auth
@@ -145,6 +146,43 @@ async def fetch_job_repos(info: ZuulInfo, job_name: str):
         await fetch_job_repos(info, parent)
 
 
+def read_job(path: Path, job_name: str) -> dict | None:
+    import yaml
+
+    for obj in yaml.safe_load(open(path)):
+        if job := obj.get("job"):
+            if job.get("name") == job_name:
+                return job
+    return None
+
+
+def as_list(item: str | list[str]) -> list[str]:
+    if not isinstance(item, list):
+        return [item]
+    return item
+
+
+async def get_job_playbooks(info: ZuulInfo, job_name: str):
+    plays: list[Path] = []
+    while True:
+        job = info.jobs.get(job_name)
+        if not job:
+            print(f"Unknown job: {job_name}")
+            break
+        if url := info.project_git(job.project):
+            path = await rcav2.git.ensure_repo(url)
+            if job_def := read_job(path / job.path, job_name):
+                plays.extend(
+                    map(lambda play: path / play, as_list(job_def.get("run", [])))
+                )
+            else:
+                print(f"{path}: Couldn't find job: {job_name}")
+        if not job.parent:
+            break
+        job_name = job.parent
+    return plays
+
+
 async def amain() -> None:
     import json
     import sys
@@ -157,11 +195,13 @@ async def amain() -> None:
         json.dump(export, open(".zuul-export.json", "w"))
 
     info = read_weeder_export(export)
-    match sys.argv:
-        case [_, "url", job_name]:
+    match sys.argv[1:]:
+        case ["url", job_name]:
             print_job_url(info, job_name)
-        case [_, "prepare-workspace", job_name]:
+        case ["prepare-workspace", job_name]:
             await fetch_job_repos(info, job_name)
+        case ["playbooks", job_name]:
+            print(await get_job_playbooks(info, job_name))
         case _:
             print("usage: url job")
 
