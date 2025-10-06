@@ -6,6 +6,9 @@ import urllib.parse
 import asyncio
 
 
+workspace_root = Path("~/.cache/rca/gits")
+
+
 def url_to_path(urlstring: str) -> Path:
     """Convert a git url into a local path
 
@@ -18,7 +21,9 @@ def url_to_path(urlstring: str) -> Path:
         [host, path] = urlstring.split(":", 1)
         urlstring = f"git://{host}/{path}"
     url = urllib.parse.urlparse(urlstring, scheme="git")
-    return Path(f"~/.cache/rca/gits/{url.hostname}/{url.path}")
+    if not url.hostname or not url.path:
+        raise RuntimeError(f"{urlstring}: invalid url: {url}")
+    return workspace_root / url.hostname / url.path[1:]
 
 
 async def run_check(args: list[str], cwd: Path | None = None):
