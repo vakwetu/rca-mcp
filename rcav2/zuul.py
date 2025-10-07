@@ -2,91 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import asyncio
+import time
 from pathlib import Path
-from dataclasses import dataclass
 
 import rcav2.auth
 import rcav2.git
 from rcav2.env import Env
-
-
-@dataclass
-class JobInfo:
-    name: str
-    parent: str | None
-    path: str
-    project: str
-
-
-@dataclass
-class ProjectInfo:
-    name: str
-    branch: str
-    provider: str
-
-
-@dataclass
-class ProviderInfo:
-    name: str
-    url: str
-    kind: str
-
-    def http_url(self, project: str, branch: str, path: str) -> str | None:
-        def opendev():
-            return f"https://opendev.org/{project}/src/branch/{branch}/{path}"
-
-        match self.kind:
-            case "GitlabUrl":
-                return f"{self.url}/{project}/-/blob/{branch}/{path}"
-            case "GithubUrl":
-                return f"{self.url}/{project}/blob/{branch}/{path}"
-            case "GerritUrl":
-                if self.url == "https://review.opendev.org":
-                    return opendev()
-                else:
-                    url = self.url.rstrip("/r")
-                    return f"{url}/cgit/{project}/tree/{path}?h={branch}"
-            case "GitUrl":
-                if self.url == "https://opendev.org":
-                    return opendev()
-            case _:
-                print(f"Unknown provider: {self}")
-        return None
-
-    def git_url(self, project: str) -> str | None:
-        match self.kind:
-            case "GitlabUrl" | "GithubUrl" | "GerritUrl":
-                url = self.url.rstrip("/r").lstrip("https://").rstrip("/")
-                return f"git@{url}:{project}.git"
-            case "GitUrl":
-                return f"{self.url.rstrip('/')}/{project}"
-            case _:
-                print(f"Unknown provider: {self}")
-                return None
-
-
-@dataclass
-class ZuulInfo:
-    jobs: dict[str, JobInfo]
-    projects: dict[str, ProjectInfo]
-    providers: dict[str, ProviderInfo]
-
-    def job_url(self, job_name: str, path: str | None = None) -> str | None:
-        if job := self.jobs.get(job_name):
-            if not path:
-                path = job.path
-            project = self.projects[job.project]
-            return self.providers[project.provider].http_url(
-                job.project, project.branch, path
-            )
-        else:
-            return None
-
-    def project_git(self, project_name: str) -> str | None:
-        if project := self.projects.get(project_name):
-            return self.providers[project.provider].git_url(project_name)
-        else:
-            return None
+from rcav2.zuul_info import ZuulInfo, JobInfo, ProjectInfo, ProviderInfo
 
 
 async def fetch_weeder_export(env: Env) -> dict:
@@ -181,6 +103,14 @@ async def get_job_playbooks(info: ZuulInfo, job_name: str):
             break
         job_name = job.parent
     return plays
+
+
+async def ensure_zuul_info(env: Env):
+    now = time.time()
+    if not env.zuul_info or now - env.zuul_info_age > 24 * 3600:
+        export = await fetch_weeder_export(env)
+        env.zuul_info = read_weeder_export(export)
+        env.zuul_info_age = now
 
 
 async def amain() -> None:

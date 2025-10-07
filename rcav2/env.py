@@ -8,6 +8,7 @@ import logging
 import time
 from httpx_gssapi import HTTPSPNEGOAuth, OPTIONAL  # type: ignore
 from rcav2.config import SF_DOMAIN, CA_BUNDLE_PATH
+from rcav2.zuul_info import ZuulInfo
 
 
 class Env:
@@ -19,6 +20,8 @@ class Env:
         self.cookie = None
         self.cookie_path = cookie_path
         self.cookie_age = 0.0
+        self.zuul_info: ZuulInfo | None = None
+        self.zuul_info_age = 0.0
         self.httpx = make_httpx_client(cookie_path)
         self.auth = HTTPSPNEGOAuth(mutual_authentication=OPTIONAL)
         self.log = logging.getLogger("rcav2")
