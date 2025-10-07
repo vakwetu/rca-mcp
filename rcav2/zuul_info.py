@@ -50,6 +50,8 @@ class ProviderInfo:
     def git_url(self, project: str) -> str | None:
         match self.kind:
             case "GitlabUrl" | "GithubUrl" | "GerritUrl":
+                if self.url == "https://github.com":
+                    return f"{self.url}/{project}"
                 url = self.url.rstrip("/r").lstrip("https://").rstrip("/")
                 return f"git@{url}:{project}.git"
             case "GitUrl":
