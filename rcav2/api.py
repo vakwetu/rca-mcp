@@ -5,7 +5,6 @@ from fastapi import FastAPI, Request
 from fastapi.responses import (
     StreamingResponse,
 )
-from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import json
 
@@ -69,14 +68,10 @@ async def lifespan(app: FastAPI):
     await app.state.worker_pool.stop()
 
 
-app = FastAPI(lifespan=lifespan)
-
-
 def get_pool(request: Request) -> Pool:
     return request.app.state.worker_pool
 
 
-@app.get("/report")
 def report(request: Request, build: str):
     """Return completed report"""
     if events := rcav2.database.get(request.app.state.db, build):
@@ -84,7 +79,6 @@ def report(request: Request, build: str):
     return dict(status="Report not found")
 
 
-@app.put("/submit")
 async def submit(request: Request, build: str):
     """Submit the build"""
     pool = get_pool(request)
@@ -97,7 +91,6 @@ async def submit(request: Request, build: str):
     return dict(status="PENDING")
 
 
-@app.get("/watch")
 async def watch(request: Request, build: str):
     """Watch a pending build."""
 
@@ -116,4 +109,7 @@ async def watch(request: Request, build: str):
     return StreamingResponse(watch_build(), media_type="text/event-stream")
 
 
-app.mount("/", StaticFiles(directory="dist", html=True), name="static")
+def setup_handlers(app: FastAPI):
+    app.add_api_route("/report", endpoint=report, methods=["GET"])
+    app.add_api_route("/submit", endpoint=submit, methods=["PUT"])
+    app.add_api_route("/watch", endpoint=watch, methods=["GET"])

@@ -26,7 +26,7 @@ release: ## Create a release version of the app
 
 .PHONY: backend-serve
 backend-serve: ## Serve the backend API server
-	@uv run fastapi dev --host 0.0.0.0 --port 8080 ./rcav2/api.py
+	@uv run fastapi dev --host 0.0.0.0 --port 8080 ./rcav2/standalone.py
 .PHONY: frontend-install
 
 frontend-install:
