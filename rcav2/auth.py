@@ -5,6 +5,7 @@
 import os
 import subprocess
 import httpx
+import time
 from .config import SF_URL
 from .env import Env
 
@@ -33,6 +34,8 @@ async def get_oidc_cookie(env: Env):
 
 
 async def ensure_cookie(env: Env):
-    if not env.cookie:
+    now = time.time()
+    if not env.cookie or now - env.cookie_age > (23.8 * 3600):
         ensure_kerberos()
         env.cookie = await get_oidc_cookie(env)
+        env.cookie_age = now

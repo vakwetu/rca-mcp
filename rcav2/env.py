@@ -18,6 +18,7 @@ class Env:
         logging.basicConfig(format="%(asctime)s %(levelname)9s %(message)s", level=lvl)
         self.cookie = None
         self.cookie_path = cookie_path
+        self.cookie_age = 0.0
         self.httpx = make_httpx_client(cookie_path)
         self.auth = HTTPSPNEGOAuth(mutual_authentication=OPTIONAL)
         self.log = logging.getLogger("rcav2")
