@@ -90,7 +90,7 @@ export function RcaComponent(
 
     try {
       const submitRes = await fetch(
-        `${backendUrl}/submit?build=${encodeURIComponent(build)}`,
+        `${backendUrl}/get?build=${encodeURIComponent(build)}`,
         {
           method: "PUT",
         },
@@ -98,15 +98,8 @@ export function RcaComponent(
 
       const submitData = await submitRes.json();
 
-      if (submitData.status === "COMPLETED") {
-        const reportRes = await fetch(
-          `${backendUrl}/report?build=${encodeURIComponent(build)}`,
-        );
-        if (!reportRes.ok) {
-          throw new Error("Failed to fetch completed report");
-        }
-        const reportData = await reportRes.json();
-        reportData.forEach(([event, body]) => {
+      if (submitData instanceof Array) {
+        submitData.forEach(([event, body]) => {
           handleMessage(event, body);
         });
         setIsLoading(false);

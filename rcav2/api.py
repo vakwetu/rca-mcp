@@ -72,21 +72,14 @@ def get_pool(request: Request) -> Pool:
     return request.app.state.worker_pool
 
 
-def report(request: Request, build: str):
-    """Return completed report"""
-    if events := rcav2.database.get(request.app.state.db, build):
-        return json.loads(events)
-    return dict(status="Report not found")
-
-
-async def submit(request: Request, build: str):
-    """Submit the build"""
+async def get(request: Request, build: str):
+    """Get or submit the build"""
     pool = get_pool(request)
     if pool.pending.get(build):
         return dict(status="PENDING")
     db = request.app.state.db
-    if rcav2.database.get(db, build):
-        return dict(status="COMPLETED")
+    if events := rcav2.database.get(db, build):
+        return json.loads(events)
     await pool.submit(RCAJob(request.app.state.env, db, build))
     return dict(status="PENDING")
 
@@ -110,6 +103,5 @@ async def watch(request: Request, build: str):
 
 
 def setup_handlers(app: FastAPI):
-    app.add_api_route("/report", endpoint=report, methods=["GET"])
-    app.add_api_route("/submit", endpoint=submit, methods=["PUT"])
+    app.add_api_route("/get", endpoint=get, methods=["PUT"])
     app.add_api_route("/watch", endpoint=watch, methods=["GET"])
