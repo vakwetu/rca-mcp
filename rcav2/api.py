@@ -57,6 +57,51 @@ class RCAJob(Job):
         )
 
 
+class ZuulJob(Job):
+    """Discover Job definition"""
+
+    def __init__(self, env: rcav2.env.Env, db: rcav2.database.Engine, name: str):
+        self.name = name
+        self.env = env
+        self.db = db
+
+    @property
+    def job_key(self) -> str:
+        return self.name
+
+    async def run(self, worker: Worker):
+        import asyncio
+
+        try:
+            await worker.emit("Analyzing job...", event="progress")
+            await asyncio.sleep(2)
+        except Exception as e:
+            self.env.log.exception("Job failed")
+            await worker.emit(f"Analysis failed: {e}", event="status")
+        rcav2.database.set_job(
+            self.db,
+            self.name,
+            json.dumps(list(filter(lambda msg: msg[0] != "progress", worker.history))),
+        )
+
+
+async def job_get(request: Request, name: str):
+    """Describe a job"""
+    pool = get_pool(request)
+    if pool.pending.get(name):
+        return dict(status="PENDING")
+    db = request.app.state.db
+    if rcav2.database.get_job(db, name):
+        return dict(status="COMPLETED")
+    await pool.submit(ZuulJob(request.app.state.env, db, name))
+    return dict(status="PENDING")
+
+
+async def job_watch(request: Request, name: str):
+    """Watch a pending job."""
+    return StreamingResponse(do_watch(request, name), media_type="text/event-stream")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # setup
@@ -105,3 +150,5 @@ async def watch(request: Request, build: str):
 def setup_handlers(app: FastAPI):
     app.add_api_route("/get", endpoint=get, methods=["PUT"])
     app.add_api_route("/watch", endpoint=watch, methods=["GET"])
+    app.add_api_route("/get_job", endpoint=job_get, methods=["PUT"])
+    app.add_api_route("/watch_job", endpoint=job_watch, methods=["GET"])

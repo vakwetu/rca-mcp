@@ -22,7 +22,7 @@ function Spinner() {
 }
 
 export function RcaComponent(
-  { build = "", backendUrl = "" }: RcaComponentProps,
+  { build = "", job = "", backendUrl = "" }: RcaComponentProps,
 ) {
   const [refresh, setRefresh] = useState(false);
   const [status, setStatus] = useState<string[]>([]);
@@ -41,7 +41,7 @@ export function RcaComponent(
     setUsage(null);
     setIsLoading(true);
 
-    if (!build) {
+    if (!build && !job) {
       setStatus(
         (_) => ["Build is missing, try adding ?build=... to the page url."]
       );
@@ -89,12 +89,8 @@ export function RcaComponent(
     }
 
     try {
-      const submitRes = await fetch(
-        `${backendUrl}/get?build=${encodeURIComponent(build)}`,
-        {
-          method: "PUT",
-        },
-      );
+      const arg = build ? `?build=${encodeURIComponent(build)}` : `_job?name=${job}`;
+      const submitRes = await fetch(`${backendUrl}/get${arg}`, {method: "PUT"});
 
       const submitData = await submitRes.json();
 
@@ -106,9 +102,8 @@ export function RcaComponent(
         return;
       }
 
-      eventSource = new EventSource(
-        `${backendUrl}/watch?build=${encodeURIComponent(build)}`,
-      );
+      const watch_arg = build ? `?build=${encodeURIComponent(build)}` : `_job?name=${job}`;
+      eventSource = new EventSource(`${backendUrl}/watch${watch_arg}`);
 
       eventSource.onmessage = (e) => {
         const [event, body] = JSON.parse(e.data);
