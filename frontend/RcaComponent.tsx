@@ -24,6 +24,7 @@ function Spinner() {
 export function RcaComponent(
   { build = "", backendUrl = "" }: RcaComponentProps,
 ) {
+  const [refresh, setRefresh] = useState(false);
   const [status, setStatus] = useState<string[]>([]);
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
@@ -66,6 +67,13 @@ export function RcaComponent(
           break;
         case "usage":
           setUsage(body);
+          break;
+        case "redirect":
+          if (eventSource) {
+            eventSource.close();
+          }
+          eventSource = null;
+          setRefresh(true);
           break;
         case "status":
           console.log("Setting status", body);
@@ -135,7 +143,7 @@ export function RcaComponent(
   useEffect(() => {
     getReport();
     return () => { };
-  }, [build]);
+  }, [build, refresh]);
   return (
     <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 transition-colors duration-300">
       <div className="w-full max-w-4xl">
