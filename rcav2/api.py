@@ -84,22 +84,22 @@ async def get(request: Request, build: str):
     return dict(status="PENDING")
 
 
+async def do_watch(request, job):
+    watcher = await get_pool(request).watch(job)
+    if not watcher:
+        # The report is now completed, redirect the client to the static page
+        yield f"data: {json.dumps(['redirect', True])}\n\n"
+        return
+    while True:
+        event = await watcher.recv()
+        yield f"data: {json.dumps(event)}\n\n"
+        if event == "status":
+            break
+
+
 async def watch(request: Request, build: str):
     """Watch a pending build."""
-
-    async def watch_build():
-        watcher = await get_pool(request).watch(build)
-        if not watcher:
-            # The report is now completed, redirect the client to the static page
-            yield f"data: {json.dumps(['redirect', True])}\n\n"
-            return
-        while True:
-            event = await watcher.recv()
-            yield f"data: {json.dumps(event)}\n\n"
-            if event == "status":
-                break
-
-    return StreamingResponse(watch_build(), media_type="text/event-stream")
+    return StreamingResponse(do_watch(request, build), media_type="text/event-stream")
 
 
 def setup_handlers(app: FastAPI):
