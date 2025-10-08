@@ -36,6 +36,6 @@ frontend-install:
 frontend-serve: frontend-install ## Start the frontend dev server
 	npm run dev
 
-.PHONY: frontend-build ## Build a static version to be served by the api
-frontend-build:
+.PHONY: frontend-build
+frontend-build: ## Build a static version to be served by the api
 	npm run build
