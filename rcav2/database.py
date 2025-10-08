@@ -24,10 +24,42 @@ class Report(Base):
     events: Mapped[str | None]
 
 
+class Job(Base):
+    __tablename__ = "job_descriptions"
+
+    name: Mapped[str] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(server_default=func.now())
+    body: Mapped[str | None]
+
+
 def create(path: str) -> Engine:
     engine = create_engine(f"sqlite:///{path}", echo=True)
     Base.metadata.create_all(engine)
     return engine
+
+
+def get_job(engine: Engine, name: str) -> str | None:
+    with Session(engine) as session:
+        try:
+            job = session.scalars(select(Job).where(Job.name == name)).one()
+            age = datetime.datetime.now() - job.created_at
+            if age.total_seconds() > 3600 * 24:
+                return None
+            return job.body
+        except NoResultFound:
+            session.add(Job(name=name))
+            session.commit()
+            return None
+
+
+def set_job(engine: Engine, name: str, body: str):
+    with Session(engine) as session:
+        session.execute(
+            update(Job)
+            .where(Job.name == name)
+            .values(body=body, created_at=datetime.datetime.now())
+        )
+        session.commit()
 
 
 def get(engine: Engine, build: str) -> str | None:
