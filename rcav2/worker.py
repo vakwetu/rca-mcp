@@ -8,7 +8,7 @@ This module defines a Pool object to manage job pub/sub
 import asyncio
 from abc import ABCMeta, abstractmethod
 
-type Body = str | bool | int | dict
+type Body = str | bool | int | list | dict
 type Event = tuple[str, Body]
 
 
