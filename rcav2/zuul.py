@@ -105,12 +105,13 @@ async def get_job_playbooks(info: ZuulInfo, job_name: str):
     return plays
 
 
-async def ensure_zuul_info(env: Env):
+async def ensure_zuul_info(env: Env) -> ZuulInfo:
     now = time.time()
     if not env.zuul_info or now - env.zuul_info_age > 24 * 3600:
         export = await fetch_weeder_export(env)
         env.zuul_info = read_weeder_export(export)
         env.zuul_info_age = now
+    return env.zuul_info
 
 
 async def amain() -> None:

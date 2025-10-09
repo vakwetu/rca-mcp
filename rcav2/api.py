@@ -15,6 +15,7 @@ import rcav2.prompt
 import rcav2.database
 import rcav2.auth
 import rcav2.zuul
+import rcav2.agent.zuul
 from rcav2.worker import Pool, Worker, Job
 from rcav2.config import DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, DATABASE_FILE
 
@@ -78,11 +79,17 @@ class ZuulJob(Job):
         return self.name
 
     async def run(self, worker: Worker):
-        import asyncio
-
         try:
-            await worker.emit("Analyzing job...", event="progress")
-            await asyncio.sleep(2)
+            await worker.emit("Reading job plays...", event="progress")
+            zuul_info = await rcav2.zuul.ensure_zuul_info(self.env)
+            plays = await rcav2.zuul.get_job_playbooks(zuul_info, self.name)
+            if not plays:
+                await worker.emit(f"Couldn't find job {self.name}", event="error")
+            else:
+                await worker.emit("Analyzing job...", event="progress")
+                agent = rcav2.agent.zuul.make_agent(worker)
+                job = await rcav2.agent.zuul.call_agent(agent, plays, worker)
+                await worker.emit(job.model_dump(), event="job")
         except Exception as e:
             self.env.log.exception("Job failed")
             await worker.emit(f"Analysis failed: {e}", event="status")
@@ -99,8 +106,8 @@ async def job_get(request: Request, name: str):
     if pool.pending.get(name):
         return dict(status="PENDING")
     db = request.app.state.db
-    if rcav2.database.get_job(db, name):
-        return dict(status="COMPLETED")
+    if events := rcav2.database.get_job(db, name):
+        return json.loads(events)
     await pool.submit(ZuulJob(request.app.state.env, db, name))
     return dict(status="PENDING")
 
@@ -116,6 +123,7 @@ async def lifespan(app: FastAPI):
     app.state.env = rcav2.env.Env(debug=True, cookie_path=None)
     app.state.worker_pool = Pool(2)
     app.state.db = rcav2.database.create(DATABASE_FILE)
+    rcav2.model.init_dspy()
     yield
     # teardown
     await app.state.worker_pool.stop()
