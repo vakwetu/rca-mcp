@@ -23,7 +23,10 @@ def url_to_path(urlstring: str) -> Path:
     url = urllib.parse.urlparse(urlstring, scheme="git")
     if not url.hostname or not url.path:
         raise RuntimeError(f"{urlstring}: invalid url: {url}")
-    return workspace_root / url.hostname / url.path[1:]
+    path = url.path[1:]
+    if path.endswith(".git"):
+        path = path[:-4]
+    return workspace_root / url.hostname / path
 
 
 async def run_check(args: list[str], cwd: Path | None = None):
