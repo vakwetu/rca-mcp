@@ -1,7 +1,20 @@
 # Copyright © 2025 Red Hat
 # SPDX-License-Identifier: Apache-2.0
 
+import dspy  # type: ignore[import-untyped]
 import llm
+import os
+
+
+def init_dspy():
+    dspy.configure(
+        lm=dspy.LM(
+            "gemini/gemini-2.5-flash",
+            temperature=0.5,
+            max_tokens=16384,
+            api_key=os.environ["LLM_GEMINI_KEY"],
+        )
+    )
 
 
 async def query(env, model, system, prompt):

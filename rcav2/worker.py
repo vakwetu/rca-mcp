@@ -45,6 +45,11 @@ class Worker:
         self.watchers.append(watcher)
 
 
+class CLIWorker(Worker):
+    async def emit(self, body: Body, event: str) -> None:
+        print(f"{event} - {body}")
+
+
 class Job(metaclass=ABCMeta):
     @abstractmethod
     async def run(self, worker: Worker): ...

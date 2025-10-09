@@ -5,6 +5,7 @@ import dspy  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
 import rcav2.git
+from rcav2.worker import Worker
 
 
 class Job(BaseModel):
@@ -44,12 +45,24 @@ def make_agent():
     return dspy.ReAct(DSPyAnsibleOracle, tools=[read_file, find_file])
 
 
-async def main():
+async def call_agent(agent: dspy.ReAct, plays: list[str], worker: Worker) -> Job:
+    # Make the path relative to the workspace
+    playbooks = list(map(lambda p: str(p)[len(str(root)) + 1 :], plays))
+
+    await worker.emit(f"Calling AnsibleOracle with {playbooks}", "progress")
+    result = await agent.acall(playbooks=plays)
+    print(result)
+
+    return result["job"]
+
+
+async def main() -> None:
     """A test experiment"""
-    import os
     import sys
     import json
     import rcav2.zuul
+    import rcav2.model
+    from rcav2.worker import CLIWorker
 
     job = sys.argv[1]
     export = json.load(open(".zuul-export.json"))
@@ -59,20 +72,10 @@ async def main():
         print("Couldn't find job playbook")
         return
 
-    plays = list(map(lambda p: str(p)[len(str(root)) + 1 :], plays))
-
-    dspy.configure(
-        lm=dspy.LM(
-            "gemini/gemini-2.5-flash",
-            temperature=0.5,
-            max_tokens=16384,
-            api_key=os.environ["LLM_GEMINI_KEY"],
-        )
-    )
+    rcav2.model.init_dspy()
     agent = make_agent()
-    print(f"Calling agent with {plays}")
-    result = await agent.acall(playbooks=plays)
-    print(result)
+    job_info = await call_agent(agent, plays, CLIWorker())
+    print(job_info)
 
 
 if __name__ == "__main__":
