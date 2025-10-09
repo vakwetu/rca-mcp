@@ -17,7 +17,7 @@
     "dist"
   ],
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0",
     "build": "env VITE_STANDALONE=1 vite build",
     "release": "vite build",
     "preview": "vite preview"

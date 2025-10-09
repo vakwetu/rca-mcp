@@ -26,7 +26,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/submit': {
+      '/get': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
@@ -34,7 +34,11 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
-      '/report': {
+      '/get_job': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/watch_job': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
