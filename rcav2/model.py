@@ -27,7 +27,8 @@ async def emit_dspy_usage(result, worker):
                     model=model,
                     input=usage.get("prompt_tokens"),
                     output=usage.get("completion_tokens"),
-                )
+                ),
+                events="usage",
             )
 
 
