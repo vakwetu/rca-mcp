@@ -85,6 +85,9 @@ export function RcaComponent(
           eventSource = null;
           setRefresh(true);
           break;
+        case "error":
+          setError(body);
+          break;
         case "status":
           console.log("Setting status", body);
           if (body != "completed") {
