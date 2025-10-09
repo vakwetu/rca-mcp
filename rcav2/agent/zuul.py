@@ -52,6 +52,7 @@ async def call_agent(agent: dspy.ReAct, plays: list[str], worker: Worker) -> Job
     await worker.emit("Calling AnsibleOracle", "progress")
     await worker.emit(playbooks, "playbooks")
     result = await agent.acall(playbooks=playbooks)
+    await rcav2.model.emit_dspy_usage(result, worker)
     return result.job
 
 
