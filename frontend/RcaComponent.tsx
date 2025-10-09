@@ -26,6 +26,8 @@ export function RcaComponent(
 ) {
   const [refresh, setRefresh] = useState(false);
   const [status, setStatus] = useState<string[]>([]);
+  const [playbooks, setPlaybooks] = useState<string[]>([]);
+  const [jobInfo, setJobInfo] = useState(null);
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
   const [logjuicerUrl, setLogjuicerUrl] = useState("");
@@ -35,6 +37,8 @@ export function RcaComponent(
 
   async function getReport() {
     setStatus([]);
+    setJobInfo(null);
+    setPlaybooks([]);
     setResult("");
     setError("");
     setLogjuicerUrl("");
@@ -64,6 +68,12 @@ export function RcaComponent(
           break;
         case "logjuicer_url":
           setLogjuicerUrl(body);
+          break;
+        case "playbooks":
+          setPlaybooks(body);
+          break;
+        case "job":
+          setJobInfo(body);
           break;
         case "usage":
           setUsage(body);
@@ -131,7 +141,7 @@ export function RcaComponent(
   useEffect(() => {
     getReport();
     return () => { };
-  }, [build, refresh]);
+  }, [build, job, refresh]);
   return (
     <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 transition-colors duration-300">
       <div className="w-full max-w-4xl">
@@ -175,7 +185,48 @@ export function RcaComponent(
               </ul>
             </div>
           )}
-
+          {(jobInfo || playbooks.length > 0) && (
+            <div className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-md p-6">
+              <div className="flex flex-wrap justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2 mb-4 gap-2">
+                <h2 className="text-xl font-semibold">
+                  Job Information
+                </h2>
+              </div>
+              <div className="mb-4 p-3 rounded-md border border-gray-200 dark:border-gray-600">
+                {jobInfo && jobInfo.description && (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    pre: ({ node, ...props }) => (
+                      <pre
+                        {...props}
+                        className="whitespace-pre-wrap break-all"
+                      />
+                    ),
+                  }}
+                >
+                  {jobInfo.description}
+                </ReactMarkdown>
+                )}
+              </div>
+              {playbooks.length > 0 && (<>
+                <h3 className="font-semibold">Playbooks</h3>
+                <ul className="list-disc p-0 m-0 font-mono text-sm space-y-2 mb-3">
+                  {playbooks.map((play, index) => (
+                    <li key={index} className="pt-1 break-words">{play}</li>
+                  ))}
+                </ul>
+              </>)}
+              {jobInfo && jobInfo.actions && (<>
+                <h3 className="font-semibold">Actions</h3>
+                <ul className="list-decimal p-0 ml-3 font-mono text-sm space-y-2">
+                  {jobInfo.actions.map((action, index) => (
+                    <li key={index} className="pt-1 break-words">{action}</li>
+                  ))}
+                </ul>
+              </>)}
+            </div>
+          )}
           {result && (
             <div className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-md p-6">
               <div className="flex flex-wrap justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2 mb-4 gap-2">
