@@ -29,18 +29,20 @@ export function RcaComponent(
   const [playbooks, setPlaybooks] = useState<string[]>([]);
   const [jobInfo, setJobInfo] = useState(null);
   const [result, setResult] = useState("");
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState([]);
   const [logjuicerUrl, setLogjuicerUrl] = useState("");
   const [usage, setUsage] = useState<Tokens | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const eventSourceRef = useRef<EventSource | null>(null);
+
+  const addError = (e) => setErrors((prev) => [...prev, e])
 
   async function getReport() {
     setStatus([]);
     setJobInfo(null);
     setPlaybooks([]);
     setResult("");
-    setError("");
+    setErrors([]);
     setLogjuicerUrl("");
     setUsage(null);
     setIsLoading(true);
@@ -86,12 +88,12 @@ export function RcaComponent(
           setRefresh(true);
           break;
         case "error":
-          setError(body);
+          addError(body);
           break;
         case "status":
           console.log("Setting status", body);
           if (body != "completed") {
-            setError(body);
+            addError(body);
           }
           if (eventSource) {
             eventSource.close();
@@ -124,7 +126,7 @@ export function RcaComponent(
       };
 
       eventSource.onerror = () => {
-        setError(
+        addError(
           "Failed to connect to the server. Please ensure the backend is running and accessible.",
         );
         setIsLoading(false);
@@ -135,7 +137,7 @@ export function RcaComponent(
       };
     } catch (err) {
       console.error("RCA failed", err);
-      setError(
+      addError(
         err instanceof Error ? err.message : "An unknown error occurred.",
       );
       setIsLoading(false);
@@ -156,15 +158,17 @@ export function RcaComponent(
         </header>
         <main className="w-full flex flex-col items-center gap-6">
           {isLoading && <Spinner />}
-          {error && (
+          {errors.length > 0 && (
             <div className="w-full bg-red-50 dark:bg-gray-800 border border-red-500 rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-red-700 dark:text-red-400 border-b border-red-200 dark:border-gray-700 pb-2 mb-4">
                 Error
               </h2>
-              <pre className="text-red-600 dark:text-red-300 whitespace-pre-wrap break-words font-mono">{error}</pre>
+              {errors.map((error, index) => (
+                <pre key={index} className="text-red-600 dark:text-red-300 whitespace-pre-wrap break-words font-mono">{error}</pre>
+              ))}
             </div>
           )}
-          {!isLoading && !error && (logjuicerUrl || status.length > 0) && (
+          {!isLoading && (logjuicerUrl || status.length > 0) && (
             <div className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-2 mb-4">
                 Analysis Status
