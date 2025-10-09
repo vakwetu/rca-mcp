@@ -13,6 +13,8 @@ import rcav2.env
 import rcav2.model
 import rcav2.prompt
 import rcav2.database
+import rcav2.auth
+import rcav2.zuul
 from rcav2.worker import Pool, Worker, Job
 from rcav2.config import DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, DATABASE_FILE
 
@@ -24,6 +26,9 @@ class RCAJob(Job):
         self.url = url
         self.env = env
         self.db = db
+
+    async def prepare(self):
+        await rcav2.auth.ensure_cookie(self.env)
 
     @property
     def job_key(self) -> str:
@@ -64,6 +69,9 @@ class ZuulJob(Job):
         self.name = name
         self.env = env
         self.db = db
+
+    async def prepare(self):
+        await rcav2.zuul.ensure_zuul_info(self.env)
 
     @property
     def job_key(self) -> str:

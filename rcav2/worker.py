@@ -53,6 +53,10 @@ class Job(metaclass=ABCMeta):
     @abstractmethod
     def job_key(self) -> str: ...
 
+    @property
+    @abstractmethod
+    async def prepare(self): ...
+
 
 class Pool:
     """Pool of workers to manage pub/sub."""
@@ -71,11 +75,12 @@ class Pool:
             worker.cancel()
         await asyncio.gather(*self.workers, return_exceptions=True)
 
-    async def submit(self, job: Job):
+    async def submit(self, job: Job) -> None:
         key = job.job_key
         if not self.pending.get(key):
             worker_job = (Worker(), job)
             self.pending[key] = worker_job
+            await job.prepare()
             await self.queue.put(worker_job)
 
     async def watch(self, key: str) -> Watcher | None:

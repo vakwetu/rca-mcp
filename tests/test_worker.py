@@ -14,6 +14,9 @@ class Dummy(Job):
     def job_key(self) -> str:
         return self.url
 
+    async def prepare(self):
+        pass
+
     async def run(self, worker: Worker):
         await worker.emit("starting...", event="log")
         for x in range(5):
