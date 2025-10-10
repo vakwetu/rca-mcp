@@ -44,11 +44,11 @@ def read_target(target) -> str:
     """Convert a target description.
 
     >>> read_target({'Zuul': {'job_name': 'tox'}})
-    'Zuul job named tox'
+    'tox'
     """
     match target:
         case {"Zuul": build}:
-            return f"Zuul job named {build['job_name']}"
+            return build["job_name"]
         case _:
             return f"Unknown target: {target}"
 

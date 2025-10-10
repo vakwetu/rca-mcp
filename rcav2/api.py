@@ -42,9 +42,25 @@ class RCAJob(Job):
                 self.env, self.url, worker
             )
 
-            await worker.emit("Analyzing build with LLM...", event="progress")
+            job_name = errors_report.target
+            await worker.emit(f"Describing job {job_name}...", event="progress")
+            job = None
+            if events := rcav2.database.get_job(self.db, job_name):
+                await worker.emit("Found a description in the cache", event="progress")
+                job = rcav2.agent.zuul.Job.model_validate(
+                    list(filter(lambda ev: ev[0] == "job", events))[0][1]
+                )
+            if not job:
+                job = await describe_job(self.env, errors_report.target, worker)
+            if job:
+                await worker.emit(job.model_dump(), event="job")
+            else:
+                job = rcav2.agent.zuul.Job(description="", actions=[])
+
             rca_agent = rcav2.agent.rca.make_agent()
-            report = await rcav2.agent.rca.call_agent(rca_agent, errors_report, worker)
+            report = await rcav2.agent.rca.call_agent(
+                rca_agent, job, errors_report, worker
+            )
             await worker.emit(report, event="chunk")
 
             await worker.emit("completed", event="status")
@@ -59,6 +75,21 @@ class RCAJob(Job):
             self.url,
             json.dumps(list(filter(lambda msg: msg[0] != "progress", worker.history))),
         )
+
+
+async def describe_job(
+    env: rcav2.env.Env, name: str, worker: Worker
+) -> rcav2.agent.zuul.Job | None:
+    await worker.emit("Reading job plays...", event="progress")
+    zuul_info = await rcav2.zuul.ensure_zuul_info(env)
+    plays = await rcav2.zuul.get_job_playbooks(zuul_info, name)
+    if not plays:
+        await worker.emit(f"Couldn't find job {name}", event="error")
+        return None
+    else:
+        await worker.emit("Analyzing job...", event="progress")
+        agent = rcav2.agent.zuul.make_agent(worker)
+        return await rcav2.agent.zuul.call_agent(agent, plays, worker)
 
 
 class ZuulJob(Job):
@@ -78,15 +109,7 @@ class ZuulJob(Job):
 
     async def run(self, worker: Worker):
         try:
-            await worker.emit("Reading job plays...", event="progress")
-            zuul_info = await rcav2.zuul.ensure_zuul_info(self.env)
-            plays = await rcav2.zuul.get_job_playbooks(zuul_info, self.name)
-            if not plays:
-                await worker.emit(f"Couldn't find job {self.name}", event="error")
-            else:
-                await worker.emit("Analyzing job...", event="progress")
-                agent = rcav2.agent.zuul.make_agent(worker)
-                job = await rcav2.agent.zuul.call_agent(agent, plays, worker)
+            if job := await describe_job(self.env, self.name, worker):
                 await worker.emit(job.model_dump(), event="job")
         except Exception as e:
             self.env.log.exception("Job failed")
