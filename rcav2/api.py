@@ -16,6 +16,7 @@ import rcav2.database
 import rcav2.auth
 import rcav2.zuul
 import rcav2.agent.zuul
+import rcav2.agent.rca
 from rcav2.worker import Pool, Worker, Job
 from rcav2.config import DATABASE_FILE
 
@@ -35,7 +36,7 @@ class RCAJob(Job):
     def job_key(self) -> str:
         return self.url
 
-    async def run(self, worker: Worker):
+    async def run(self, worker: Worker) -> None:
         try:
             await worker.emit("Fetching build errors...", event="progress")
             errors_report = await rcav2.logjuicer.get_remote_report(

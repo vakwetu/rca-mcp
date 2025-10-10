@@ -3,8 +3,6 @@
 
 import argparse
 import asyncio
-import json
-import time
 
 import rcav2.logjuicer
 import rcav2.env
