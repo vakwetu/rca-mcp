@@ -17,7 +17,7 @@ import rcav2.auth
 import rcav2.zuul
 import rcav2.agent.zuul
 from rcav2.worker import Pool, Worker, Job
-from rcav2.config import DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, DATABASE_FILE
+from rcav2.config import DATABASE_FILE
 
 
 class RCAJob(Job):
@@ -37,18 +37,16 @@ class RCAJob(Job):
 
     async def run(self, worker: Worker):
         try:
-            await worker.emit("Fetching build report...", event="progress")
-            report = await rcav2.logjuicer.get_remote_report(self.env, self.url, worker)
-
-            await worker.emit("Generating prompt...", event="progress")
-            prompt = rcav2.prompt.report_to_prompt(report)
+            await worker.emit("Fetching build errors...", event="progress")
+            errors_report = await rcav2.logjuicer.get_remote_report(
+                self.env, self.url, worker
+            )
 
             await worker.emit("Analyzing build with LLM...", event="progress")
+            rca_agent = rcav2.agent.rca.make_agent()
+            report = await rcav2.agent.rca.call_agent(rca_agent, errors_report, worker)
+            await worker.emit(report, event="chunk")
 
-            async for message, event in rcav2.model.query(
-                self.env, DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, prompt
-            ):
-                await worker.emit(message, event)
             await worker.emit("completed", event="status")
 
         except Exception as e:

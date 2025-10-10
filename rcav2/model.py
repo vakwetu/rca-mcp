@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import dspy  # type: ignore[import-untyped]
-import llm
 import os
 
 
@@ -30,14 +29,3 @@ async def emit_dspy_usage(result, worker):
                 ),
                 event="usage",
             )
-
-
-async def query(env, model, system, prompt):
-    env.log.info("Analyzing build with %s using %s bytes", model, len(prompt))
-    model = llm.get_async_model(model)
-    response = model.prompt(prompt, system=system)
-    async for chunk in response:
-        yield (chunk, "chunk")
-    usage = await response.usage()
-    if usage:
-        yield (dict(input=usage.input, output=usage.output), "usage")

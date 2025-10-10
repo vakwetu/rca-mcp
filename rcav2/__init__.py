@@ -4,6 +4,5 @@
 __version__ = "0.1.0"
 
 from .env import Env
-from .model import query
 
-__all__ = ["Env", "query"]
+__all__ = ["Env"]

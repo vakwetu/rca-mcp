@@ -12,8 +12,6 @@ dependencies = [
     "httpx-gssapi>=0.4",
     "httpx-ws>=0.7.2",
     "sqlalchemy>=2.0.43",
-    "llm>=0.27.1",
-    "llm-gemini>=0.25",
     "pyyaml>=6.0.2",
     "dspy>=3.0.3",
 ]
