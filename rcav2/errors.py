@@ -5,25 +5,22 @@
 This module contains helper to pre-process a LogJuicer report.
 """
 
-from dataclasses import dataclass
+from pydantic import BaseModel
 
 
-@dataclass
-class Error:
+class Error(BaseModel):
     before: list[str]
     line: str
     pos: int
     after: list[str]
 
 
-@dataclass
-class LogFile:
+class LogFile(BaseModel):
     source: str
     errors: list[Error]
 
 
-@dataclass
-class Report:
+class Report(BaseModel):
     target: str
     logfiles: list[LogFile]
 
@@ -58,27 +55,26 @@ def read_target(target) -> str:
 
 def read_error(anomaly) -> Error:
     return Error(
-        anomaly["before"],
-        anomaly["anomaly"]["line"],
-        anomaly["anomaly"]["pos"],
-        anomaly["after"],
+        before=anomaly["before"],
+        line=anomaly["anomaly"]["line"],
+        pos=anomaly["anomaly"]["pos"],
+        after=anomaly["after"],
     )
 
 
 def read_logfile(log_report) -> LogFile:
     return LogFile(
-        read_source(log_report["source"]),
-        list(map(read_error, log_report["anomalies"])),
+        source=read_source(log_report["source"]),
+        errors=list(map(read_error, log_report["anomalies"])),
     )
 
 
 def json_to_report(report) -> Report:
     return Report(
-        read_target(report["target"]), list(map(read_logfile, report["log_reports"]))
+        target=read_target(report["target"]),
+        logfiles=list(map(read_logfile, report["log_reports"])),
     )
 
 
 def report_to_json(report: Report) -> dict:
-    import dataclasses
-
-    return dataclasses.asdict(report)
+    return report.model_dump()
