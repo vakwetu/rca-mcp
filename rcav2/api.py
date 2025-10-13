@@ -58,7 +58,7 @@ class RCAJob(Job):
             else:
                 job = rcav2.agent.zuul.Job(description="", actions=[])
 
-            rca_agent = rcav2.agent.rca.make_agent()
+            rca_agent = rcav2.agent.rca.make_agent(errors_report, worker)
             report = await rcav2.agent.rca.call_agent(
                 rca_agent, job, errors_report, worker
             )

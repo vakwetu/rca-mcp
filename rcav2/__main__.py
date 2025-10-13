@@ -41,7 +41,7 @@ async def run(args, env: rcav2.env.Env):
     job = await rcav2.agent.zuul.call_agent(zuul_agent, plays, worker)
 
     # Produce the RCA
-    rca_agent = rcav2.agent.rca.make_agent()
+    rca_agent = rcav2.agent.rca.make_agent(report, worker)
     result = await rcav2.agent.rca.call_agent(rca_agent, job, report, worker)
     print(result)
 
