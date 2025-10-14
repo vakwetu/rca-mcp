@@ -47,10 +47,12 @@ def make_agent(errors: rcav2.errors.Report, worker: Worker) -> dspy.Predict:
 
 async def call_agent(
     agent: dspy.Predict,
-    job: rcav2.agent.zuul.Job,
+    job: rcav2.agent.zuul.Job | None,
     errors: rcav2.errors.Report,
     worker: Worker,
 ) -> str:
+    if not job:
+        job = rcav2.agent.zuul.Job(description="", actions=[])
     await worker.emit("Calling RCAAccelerator", "progress")
     errors_count = dict()
     for logfile in errors.logfiles:

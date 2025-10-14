@@ -10,6 +10,7 @@ import rcav2.logjuicer
 import rcav2.zuul
 import rcav2.agent.zuul
 import rcav2.agent.rca
+import rcav2.agent.rca_reader
 
 
 async def job_from_model(env: Env, name: str, worker: Worker) -> Job | None:
@@ -45,6 +46,7 @@ async def describe_job(
 
 async def rca_job_errors(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
     """A two step workflow with job description"""
+    await worker.emit("predict", event="workflow")
     await worker.emit("Fetching build errors...", event="progress")
     errors_report = await rcav2.logjuicer.get_report(env, url, worker)
 
@@ -55,4 +57,22 @@ async def rca_job_errors(env: Env, db: Engine | None, url: str, worker: Worker) 
 
     rca_agent = rcav2.agent.rca.make_agent(errors_report, worker)
     report = await rcav2.agent.rca.call_agent(rca_agent, job, errors_report, worker)
+    await worker.emit(report, event="chunk")
+
+
+async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
+    """A two step workflow using a ReAct module"""
+    await worker.emit("react", event="progress")
+    await worker.emit("Fetching build errors...", event="progress")
+    errors_report = await rcav2.logjuicer.get_report(env, url, worker)
+
+    await worker.emit(f"Describing job {errors_report.target}...", event="progress")
+    job = await describe_job(env, db, errors_report.target, worker)
+    if job:
+        await worker.emit(job.model_dump(), event="job")
+
+    rca_agent = rcav2.agent.rca_reader.make_agent(errors_report, worker)
+    report = await rcav2.agent.rca_reader.call_agent(
+        rca_agent, job, errors_report, worker
+    )
     await worker.emit(report, event="chunk")
