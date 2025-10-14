@@ -14,6 +14,7 @@ from rcav2.worker import CLIWorker
 def usage():
     parser = argparse.ArgumentParser(description="Root Cause Analysis (RCA)")
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--workflow")
     parser.add_argument("URL", help="The build URL")
     return parser.parse_args()
 
@@ -27,7 +28,13 @@ async def amain() -> None:
         worker = CLIWorker()
 
         # Run workflow...
-        await rcav2.workflows.rca_job_errors(env, None, args.URL, worker)
+        match args.workflow:
+            case None | "predict":
+                await rcav2.workflows.rca_job_errors(env, None, args.URL, worker)
+            case "react":
+                await rcav2.workflows.rca_react(env, None, args.URL, worker)
+            case "predict-no-job":
+                print("NotImplemented")
     finally:
         env.close()
 
