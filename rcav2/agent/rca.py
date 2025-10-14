@@ -31,11 +31,14 @@ def make_agent(_errors, _worker) -> dspy.Predict:
 
 async def call_agent(
     agent: dspy.Predict,
-    job: rcav2.agent.zuul.Job,
+    job: rcav2.agent.zuul.Job | None,
     errors: rcav2.errors.Report,
     worker: Worker,
 ) -> str:
+    if not job:
+        job = rcav2.agent.zuul.Job(description="", actions=[])
     await worker.emit("Calling RCAAccelerator", "progress")
+    agent.set_lm(rcav2.model.get_lm("gemini-2.5-pro", max_tokens=1024 * 1024))
     errors_report = rcav2.prompt.report_to_prompt(errors)
     result = await agent.acall(job=job, errors=errors_report)
     await rcav2.model.emit_dspy_usage(result, worker)
