@@ -46,7 +46,7 @@ async def describe_job(
 async def rca_job_errors(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
     """A two step workflow with job description"""
     await worker.emit("Fetching build errors...", event="progress")
-    errors_report = await rcav2.logjuicer.get_remote_report(env, url, worker)
+    errors_report = await rcav2.logjuicer.get_report(env, url, worker)
 
     await worker.emit(f"Describing job {errors_report.target}...", event="progress")
     job = await describe_job(env, db, errors_report.target, worker)

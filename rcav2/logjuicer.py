@@ -1,6 +1,8 @@
 # Copyright © 2025 Red Hat
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+
 from rcav2.errors import Report
 from rcav2.env import Env
 from rcav2.worker import Worker
@@ -96,8 +98,7 @@ async def get_remote_report(env: Env, url: str, worker: None | Worker) -> Report
             env.log.error("WS error :/", e)
 
 
-async def get_report(env: Env, url: str) -> Report:
-    import os
+async def get_local_report(env: Env, url: str) -> Report:
     import rcav2.auth
 
     if not os.environ.get("LOGJUICER_HTTP_AUTH"):
@@ -108,6 +109,13 @@ async def get_report(env: Env, url: str) -> Report:
     env.log.info("Ingesting build log from %s", url)
     # TODO: handle creating remote report...
     return make_local_report(url)
+
+
+async def get_report(env: Env, url: str, worker: None | Worker) -> Report:
+    if os.environ.get("LOGJUICER_LOCAL"):
+        return await get_local_report(env, url)
+    else:
+        return await get_remote_report(env, url, worker)
 
 
 def dump_report(report: Report) -> str:
