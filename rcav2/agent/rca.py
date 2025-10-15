@@ -6,6 +6,7 @@ import dspy  # type: ignore[import-untyped]
 import rcav2.errors
 import rcav2.prompt
 import rcav2.agent.zuul
+from rcav2.report import Report
 from rcav2.worker import Worker
 
 
@@ -21,8 +22,7 @@ class RCAAccelerator(dspy.Signature):
     # TODO: provide tools instead to access the raw reports. Then remove the errors input
     errors: str = dspy.InputField()
 
-    # TODO: use structured output
-    report: str = dspy.OutputField()
+    report: Report = dspy.OutputField()
 
 
 def make_agent(_errors, _worker) -> dspy.Predict:

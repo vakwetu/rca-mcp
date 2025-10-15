@@ -12,6 +12,7 @@ import rcav2.prompt
 import rcav2.model
 import rcav2.agent.zuul
 from rcav2.worker import Worker
+from rcav2.report import Report
 
 
 class RCAAccelerator(dspy.Signature):
@@ -29,8 +30,7 @@ class RCAAccelerator(dspy.Signature):
         desc="list of source and their error count"
     )
 
-    # TODO: use structured output
-    report: str = dspy.OutputField()
+    report: Report = dspy.OutputField()
 
 
 def make_agent(errors: rcav2.errors.Report, worker: Worker) -> dspy.Predict:
