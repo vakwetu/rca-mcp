@@ -62,7 +62,7 @@ async def rca_job_errors(env: Env, db: Engine | None, url: str, worker: Worker) 
 
 async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
     """A two step workflow using a ReAct module"""
-    await worker.emit("react", event="progress")
+    await worker.emit("react", event="workflow")
     await worker.emit("Fetching build errors...", event="progress")
     errors_report = await rcav2.logjuicer.get_report(env, url, worker)
 
