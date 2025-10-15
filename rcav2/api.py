@@ -16,7 +16,7 @@ import rcav2.database
 import rcav2.auth
 import rcav2.zuul
 import rcav2.agent.zuul
-import rcav2.agent.rca
+import rcav2.agent.predict
 import rcav2.workflows
 from rcav2.worker import Pool, Worker, Job
 from rcav2.config import DATABASE_FILE

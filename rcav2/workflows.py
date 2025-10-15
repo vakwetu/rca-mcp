@@ -9,8 +9,8 @@ from rcav2.agent.zuul import Job
 import rcav2.logjuicer
 import rcav2.zuul
 import rcav2.agent.zuul
-import rcav2.agent.rca
-import rcav2.agent.rca_reader
+import rcav2.agent.predict
+import rcav2.agent.react
 
 
 async def job_from_model(env: Env, name: str, worker: Worker) -> Job | None:
@@ -55,8 +55,8 @@ async def rca_job_errors(env: Env, db: Engine | None, url: str, worker: Worker) 
     if job:
         await worker.emit(job.model_dump(), event="job")
 
-    rca_agent = rcav2.agent.rca.make_agent(errors_report, worker)
-    report = await rcav2.agent.rca.call_agent(rca_agent, job, errors_report, worker)
+    rca_agent = rcav2.agent.predict.make_agent(errors_report, worker)
+    report = await rcav2.agent.predict.call_agent(rca_agent, job, errors_report, worker)
     await worker.emit(report, event="chunk")
 
 
@@ -71,8 +71,6 @@ async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker) -> No
     if job:
         await worker.emit(job.model_dump(), event="job")
 
-    rca_agent = rcav2.agent.rca_reader.make_agent(errors_report, worker)
-    report = await rcav2.agent.rca_reader.call_agent(
-        rca_agent, job, errors_report, worker
-    )
+    rca_agent = rcav2.agent.react.make_agent(errors_report, worker)
+    report = await rcav2.agent.react.call_agent(rca_agent, job, errors_report, worker)
     await worker.emit(report, event="chunk")
