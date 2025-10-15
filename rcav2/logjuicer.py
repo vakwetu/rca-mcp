@@ -112,6 +112,9 @@ async def get_local_report(env: Env, url: str) -> Report:
 
 
 async def get_report(env: Env, url: str, worker: None | Worker) -> Report:
+    if env.logjuicer_report:
+        # eval report already available
+        return env.logjuicer_report
     if os.environ.get("LOGJUICER_LOCAL"):
         return await get_local_report(env, url)
     else:

@@ -7,6 +7,7 @@ import pathlib
 import logging
 import time
 from httpx_gssapi import HTTPSPNEGOAuth, OPTIONAL  # type: ignore
+import rcav2.errors
 from rcav2.config import SF_DOMAIN, CA_BUNDLE_PATH
 from rcav2.zuul_info import ZuulInfo
 
@@ -20,6 +21,7 @@ class Env:
         self.cookie = None
         self.cookie_path = cookie_path
         self.cookie_age = 0.0
+        self.logjuicer_report: rcav2.errors.Report | None = None
         self.zuul_info: ZuulInfo | None = None
         self.zuul_info_age = 0.0
         self.httpx = make_httpx_client(cookie_path)
