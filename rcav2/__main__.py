@@ -30,7 +30,7 @@ async def amain() -> None:
         # Run workflow...
         match args.workflow:
             case None | "predict":
-                await rcav2.workflows.rca_job_errors(env, None, args.URL, worker)
+                await rcav2.workflows.rca_predict(env, None, args.URL, worker)
             case "react":
                 await rcav2.workflows.rca_react(env, None, args.URL, worker)
             case "predict-no-job":

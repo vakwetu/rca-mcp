@@ -44,7 +44,7 @@ async def describe_job(
     return await job_from_model(env, job_name, worker)
 
 
-async def rca_job_errors(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
+async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
     """A two step workflow with job description"""
     await worker.emit("predict", event="workflow")
     await worker.emit("Fetching build errors...", event="progress")
