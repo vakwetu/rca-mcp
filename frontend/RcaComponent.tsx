@@ -150,15 +150,9 @@ export function RcaComponent(
   return (
     <div className="flex flex-col items-center">
       <div className="w-full max-w-4xl">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold"><a href="https://github.com/RCAccelerator/rca-api"
-              className="text-blue-600 dark:text-blue-400 hover:underline">RCAv2</a></h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Fast and accurate root cause analysis of Zuul CI Build failures.
-          </p>
-        </header>
         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-8" role="alert">
-          <p className="font-bold">RCAv2 experiment</p>
+          <p className="font-bold"><a href="https://github.com/RCAccelerator/rca-api"
+              className="cursor-pointer hover:underline">RCAv2 experiment</a></p>
           <p>This box is powered by GenAI, the model can make mistakes, so double-check it</p>
         </div>
         <main className="w-full flex flex-col items-center gap-6">
