@@ -57,7 +57,7 @@ async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker) -> 
 
     rca_agent = rcav2.agent.predict.make_agent(errors_report, worker)
     report = await rcav2.agent.predict.call_agent(rca_agent, job, errors_report, worker)
-    await worker.emit(report, event="chunk")
+    await worker.emit(report.model_dump(), event="report")
 
 
 async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
@@ -73,4 +73,4 @@ async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker) -> No
 
     rca_agent = rcav2.agent.react.make_agent(errors_report, worker)
     report = await rcav2.agent.react.call_agent(rca_agent, job, errors_report, worker)
-    await worker.emit(report, event="chunk")
+    await worker.emit(report.model_dump(), event="report")
