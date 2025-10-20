@@ -15,12 +15,19 @@ def usage():
     parser = argparse.ArgumentParser(description="Root Cause Analysis (RCA)")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--workflow")
-    parser.add_argument("URL", help="The build URL")
+    parser.add_argument("--local-report", help="Path to local logjuicer JSON report file")
+    parser.add_argument("URL", nargs="?", help="The build URL (optional when using --local-report)")
     return parser.parse_args()
 
 
 async def amain() -> None:
     args = usage()
+
+    # Validate arguments
+    if not args.local_report and not args.URL:
+        print("Error: Either --local-report or URL must be provided")
+        return
+
     env = rcav2.env.Env(args.debug, cookie_path=COOKIE_FILE)
     try:
         # Prepare dspy
@@ -30,9 +37,9 @@ async def amain() -> None:
         # Run workflow...
         match args.workflow:
             case None | "predict":
-                await rcav2.workflows.rca_predict(env, None, args.URL, worker)
+                await rcav2.workflows.rca_predict(env, None, args.URL, worker, args.local_report)
             case "react":
-                await rcav2.workflows.rca_react(env, None, args.URL, worker)
+                await rcav2.workflows.rca_react(env, None, args.URL, worker, args.local_report)
             case "predict-no-job":
                 print("NotImplemented")
     finally:

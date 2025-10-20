@@ -98,6 +98,24 @@ async def get_remote_report(env: Env, url: str, worker: None | Worker) -> Report
             env.log.error("WS error :/", e)
 
 
+async def get_report_from_file(env: Env, file_path: str) -> Report:
+    """Load a logjuicer report from a local JSON file."""
+    import json
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Local report file not found: {file_path}")
+
+    env.log.info("Loading local report from %s", file_path)
+    try:
+        with open(file_path, 'r') as f:
+            report_data = json.load(f)
+        return rcav2.errors.json_to_report(report_data)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in local report file {file_path}: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to load local report from {file_path}: {e}")
+
+
 async def get_local_report(env: Env, url: str) -> Report:
     import rcav2.auth
 
@@ -111,7 +129,9 @@ async def get_local_report(env: Env, url: str) -> Report:
     return make_local_report(url)
 
 
-async def get_report(env: Env, url: str, worker: None | Worker) -> Report:
+async def get_report(env: Env, url: str, worker: None | Worker, local_report_file: str = None) -> Report:
+    if local_report_file:
+        return await get_report_from_file(env, local_report_file)
     if env.logjuicer_report:
         # eval report already available
         return env.logjuicer_report

@@ -44,11 +44,11 @@ async def describe_job(
     return await job_from_model(env, job_name, worker)
 
 
-async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
+async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker, local_report_file: str = None) -> None:
     """A two step workflow with job description"""
     await worker.emit("predict", event="workflow")
     await worker.emit("Fetching build errors...", event="progress")
-    errors_report = await rcav2.logjuicer.get_report(env, url, worker)
+    errors_report = await rcav2.logjuicer.get_report(env, url, worker, local_report_file)
 
     await worker.emit(f"Describing job {errors_report.target}...", event="progress")
     job = await describe_job(env, db, errors_report.target, worker)
@@ -60,11 +60,11 @@ async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker) -> 
     await worker.emit(report.model_dump(), event="report")
 
 
-async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
+async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker, local_report_file: str = None) -> None:
     """A two step workflow using a ReAct module"""
     await worker.emit("react", event="workflow")
     await worker.emit("Fetching build errors...", event="progress")
-    errors_report = await rcav2.logjuicer.get_report(env, url, worker)
+    errors_report = await rcav2.logjuicer.get_report(env, url, worker, local_report_file)
 
     await worker.emit(f"Describing job {errors_report.target}...", event="progress")
     job = await describe_job(env, db, errors_report.target, worker)
