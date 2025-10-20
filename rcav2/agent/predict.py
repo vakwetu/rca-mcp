@@ -34,6 +34,7 @@ async def call_agent(
     job: rcav2.agent.zuul.Job | None,
     errors: rcav2.errors.Report,
     worker: Worker,
+    trace_storage=None,
 ) -> str:
     if not job:
         job = rcav2.agent.zuul.Job(description="", actions=[])
@@ -42,4 +43,22 @@ async def call_agent(
     errors_report = rcav2.prompt.report_to_prompt(errors)
     result = await agent.acall(job=job, errors=errors_report)
     await rcav2.model.emit_dspy_usage(result, worker)
+
+    # Store LLM interactions in Opik if trace storage is available
+    if trace_storage and trace_storage.is_available():
+        try:
+            history = rcav2.model.get_dspy_history()
+            interactions = rcav2.model.extract_llm_interactions(history)
+
+            for interaction in interactions:
+                await trace_storage.store_llm_interaction(
+                    prompt=interaction['prompt'],
+                    response=interaction['response'],
+                    model=interaction['model'],
+                    usage=interaction['usage'],
+                    worker=worker
+                )
+        except Exception as e:
+            await worker.emit(f"Failed to store LLM interactions: {e}", event="error")
+
     return result.report

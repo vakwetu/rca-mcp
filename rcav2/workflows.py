@@ -11,6 +11,7 @@ import rcav2.zuul
 import rcav2.agent.zuul
 import rcav2.agent.predict
 import rcav2.agent.react
+from rcav2.opik_trace import create_trace_storage
 
 
 async def job_from_model(env: Env, name: str, worker: Worker) -> Job | None:
@@ -47,30 +48,92 @@ async def describe_job(
 async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker, local_report_file: str = None) -> None:
     """A two step workflow with job description"""
     await worker.emit("predict", event="workflow")
-    await worker.emit("Fetching build errors...", event="progress")
-    errors_report = await rcav2.logjuicer.get_report(env, url, worker, local_report_file)
 
-    await worker.emit(f"Describing job {errors_report.target}...", event="progress")
-    job = await describe_job(env, db, errors_report.target, worker)
-    if job:
-        await worker.emit(job.model_dump(), event="job")
+    # Initialize Opik trace storage
+    trace_storage = create_trace_storage(env)
 
-    rca_agent = rcav2.agent.predict.make_agent(errors_report, worker)
-    report = await rcav2.agent.predict.call_agent(rca_agent, job, errors_report, worker)
-    await worker.emit(report.model_dump(), event="report")
+    try:
+        # Start trace
+        await trace_storage.start_trace(url, "rca-predict", worker)
+
+        # Fetch build errors
+        await worker.emit("Fetching build errors...", event="progress")
+        await trace_storage.start_span("Error Report Fetching", {"url": url, "local_file": local_report_file}, worker)
+        errors_report = await rcav2.logjuicer.get_report(env, url, worker, local_report_file)
+        await trace_storage.end_span({"error_count": sum(len(logfile.errors) for logfile in errors_report.logfiles)}, worker)
+
+        # Describe job
+        await worker.emit(f"Describing job {errors_report.target}...", event="progress")
+        await trace_storage.start_span("Job Description", {"job_name": errors_report.target}, worker)
+        job = await describe_job(env, db, errors_report.target, worker)
+        if job:
+            await worker.emit(job.model_dump(), event="job")
+        await trace_storage.end_span({"job_found": job is not None}, worker)
+
+        # Run RCA analysis
+        await trace_storage.start_span("RCA Analysis", {"workflow": "predict"}, worker)
+        rca_agent = rcav2.agent.predict.make_agent(errors_report, worker)
+        report = await rcav2.agent.predict.call_agent(rca_agent, job, errors_report, worker, trace_storage)
+
+        # Store error analysis in Opik
+        await trace_storage.store_error_analysis(errors_report, report, worker)
+        await trace_storage.end_span({"analysis_complete": True, "result": report}, worker)
+        await worker.emit(report.model_dump(), event="report")
+
+        # End trace
+        await trace_storage.end_trace({"workflow": "predict", "result": report}, worker)
+    except Exception as e:
+        env.log.error(f"RCA predict workflow failed: {e}")
+        await worker.emit(f"RCA analysis failed: {e}", event="error")
+        if trace_storage.is_available():
+            await trace_storage.end_trace({"error": str(e), "workflow": "predict"}, worker)
+    finally:
+        # Flush traces to Opik
+        await trace_storage.flush_traces(worker)
 
 
 async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker, local_report_file: str = None) -> None:
     """A two step workflow using a ReAct module"""
     await worker.emit("react", event="workflow")
-    await worker.emit("Fetching build errors...", event="progress")
-    errors_report = await rcav2.logjuicer.get_report(env, url, worker, local_report_file)
 
-    await worker.emit(f"Describing job {errors_report.target}...", event="progress")
-    job = await describe_job(env, db, errors_report.target, worker)
-    if job:
-        await worker.emit(job.model_dump(), event="job")
+    # Initialize Opik trace storage
+    trace_storage = create_trace_storage(env)
 
-    rca_agent = rcav2.agent.react.make_agent(errors_report, worker)
-    report = await rcav2.agent.react.call_agent(rca_agent, job, errors_report, worker)
-    await worker.emit(report.model_dump(), event="report")
+    try:
+        # Start trace
+        await trace_storage.start_trace(url, "rca-react", worker)
+
+        # Fetch build errors
+        await worker.emit("Fetching build errors...", event="progress")
+        await trace_storage.start_span("Error Report Fetching", {"url": url, "local_file": local_report_file}, worker)
+        errors_report = await rcav2.logjuicer.get_report(env, url, worker, local_report_file)
+        await trace_storage.end_span({"error_count": sum(len(logfile.errors) for logfile in errors_report.logfiles)}, worker)
+
+        # Describe job
+        await worker.emit(f"Describing job {errors_report.target}...", event="progress")
+        await trace_storage.start_span("Job Description", {"job_name": errors_report.target}, worker)
+        job = await describe_job(env, db, errors_report.target, worker)
+        if job:
+            await worker.emit(job.model_dump(), event="job")
+        await trace_storage.end_span({"job_found": job is not None}, worker)
+
+        # Run RCA analysis with ReAct
+        await trace_storage.start_span("RCA Analysis (ReAct)", {"workflow": "react"}, worker)
+        rca_agent = rcav2.agent.react.make_agent(errors_report, worker)
+        report = await rcav2.agent.react.call_agent(rca_agent, job, errors_report, worker, trace_storage)
+
+        # Store error analysis in Opik
+        await trace_storage.store_error_analysis(errors_report, report, worker)
+        await trace_storage.end_span({"analysis_complete": True, "result": report}, worker)
+        await worker.emit(report.model_dump(), event="report")
+
+        # End trace
+        await trace_storage.end_trace({"workflow": "react", "result": report}, worker)
+    except Exception as e:
+        env.log.error(f"RCA react workflow failed: {e}")
+        await worker.emit(f"RCA analysis failed: {e}", event="error")
+        if trace_storage.is_available():
+            await trace_storage.end_trace({"error": str(e), "workflow": "react"}, worker)
+    finally:
+        # Flush traces to Opik
+        await trace_storage.flush_traces(worker)

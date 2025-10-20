@@ -14,3 +14,7 @@ CA_BUNDLE_PATH = os.environ.get(
 )
 COOKIE_FILE = os.environ.get("COOKIE_FILE", ".cookie")
 DATABASE_FILE = os.environ.get("DATABASE_FILE", ".db.sqlite3")
+
+# Opik configuration
+OPIK_API_KEY = os.environ.get("OPIK_API_KEY") or os.environ.get("LLM_GEMINI_KEY")
+OPIK_PROJECT_NAME = os.environ.get("OPIK_PROJECT_NAME", "rca-analysis")
