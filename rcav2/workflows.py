@@ -57,7 +57,7 @@ async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker) -> 
     if job:
         await worker.emit(job.model_dump(), event="job")
 
-    rca_agent = rcav2.agent.predict.make_agent(errors_report, worker)
+    rca_agent = rcav2.agent.predict.make_agent()
     report = await rcav2.agent.predict.call_agent(rca_agent, job, errors_report, worker)
     await worker.emit(report.model_dump(), event="report")
 

@@ -25,7 +25,7 @@ class RCAAccelerator(dspy.Signature):
     report: Report = dspy.OutputField()
 
 
-def make_agent(_errors, _worker) -> dspy.Predict:
+def make_agent() -> dspy.Predict:
     return dspy.Predict(RCAAccelerator, max_tokens=1024 * 1024)
 
 
