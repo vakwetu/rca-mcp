@@ -14,7 +14,12 @@ class RCAAccelerator(dspy.Signature):
     """You are a CI engineer, your goal is to find the RCA of this build failure.
 
     You are given a description of the job and the errors found in the logs.
-    Identify the root cause.
+
+    Your investigation strategy should be as follows:
+    1.  **Recognize Symptoms:** The errors in `job-output.txt` are often just symptoms. The actual root cause likely occurred earlier.
+    2.  **Trace Back to the Root Cause:** Use the log file list to examine logs that came before `job-output.txt`. These earlier logs are critical for finding the initial point of failure.
+    3.  **Analyze All Evidence:** It is crucial that you analyze all the provided errors before drawing a conclusion. Do not stop at the first error you find.
+    4.  **Identify the Root Cause:** After a full analysis, identify the definitive root cause.
     """
 
     job: rcav2.agent.zuul.Job = dspy.InputField()
