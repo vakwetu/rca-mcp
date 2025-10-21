@@ -50,7 +50,7 @@ async def call_agent(
     job: rcav2.agent.zuul.Job | None,
     errors: rcav2.errors.Report,
     worker: Worker,
-) -> str:
+) -> Report:
     if not job:
         job = rcav2.agent.zuul.Job(description="", actions=[])
     await worker.emit("Calling RCAAccelerator", "progress")

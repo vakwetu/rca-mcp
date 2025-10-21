@@ -47,7 +47,7 @@ class Worker:
 
 class CLIWorker(Worker):
     async def emit(self, body: Body, event: str) -> None:
-        if event == "report":
+        if event == "report" and isinstance(body, dict):
             print(f"Report\n~~~~~~\n\n{body['description']}\n\nEvidences:\n")
             for evidence in body["evidences"]:
                 print(f"- {evidence['error']}\n  source: {evidence['source']}")
