@@ -19,6 +19,18 @@ class ProjectInfo:
     provider: str
 
 
+def rstrip(s: str, n: str) -> str:
+    if s.endswith(n):
+        return s[: -len(n)]
+    return s
+
+
+def lstrip(s: str, n: str) -> str:
+    if s.startswith(n):
+        return s[len(n) :]
+    return s
+
+
 @dataclass
 class ProviderInfo:
     name: str
@@ -38,7 +50,7 @@ class ProviderInfo:
                 if self.url == "https://review.opendev.org":
                     return opendev()
                 else:
-                    url = self.url.rstrip("/r")
+                    url = rstrip(self.url, "/r")
                     return f"{url}/cgit/{project}/tree/{path}?h={branch}"
             case "GitUrl":
                 if self.url == "https://opendev.org":
@@ -52,10 +64,10 @@ class ProviderInfo:
             case "GitlabUrl" | "GithubUrl" | "GerritUrl":
                 if self.url == "https://github.com":
                     return f"{self.url}/{project}"
-                url = self.url.rstrip("/r").lstrip("https://").rstrip("/")
+                url = rstrip(lstrip(rstrip(self.url, "/r"), "https://"), "/")
                 return f"git@{url}:{project}.git"
             case "GitUrl":
-                return f"{self.url.rstrip('/')}/{project}"
+                return f"{rstrip(self.url, '/')}/{project}"
             case _:
                 print(f"Unknown provider: {self}")
                 return None
