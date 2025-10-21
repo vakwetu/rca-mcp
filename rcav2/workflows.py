@@ -1,6 +1,8 @@
 # Copyright © 2025 Red Hat
 # SPDX-License-Identifier: Apache-2.0
 
+import json
+
 from rcav2.env import Env
 from rcav2.database import Engine
 from rcav2.worker import Worker
@@ -30,7 +32,7 @@ async def job_from_db(db: Engine, job_name: str, worker: Worker) -> Job | None:
     if events := rcav2.database.get_job(db, job_name):
         await worker.emit("Found a description in the cache", event="progress")
         return rcav2.agent.zuul.Job.model_validate(
-            list(filter(lambda ev: ev[0] == "job", events))[0][1]
+            list(filter(lambda ev: ev[0] == "job", json.loads(events)))[0][1]
         )
     return None
 
