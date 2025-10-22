@@ -14,6 +14,18 @@ import rcav2.agent.react
 from rcav2.opik_trace import create_trace_storage
 
 
+def load_job_description_file(file_path: str) -> str | None:
+    """Load additional job description from file."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        print(f"Error reading job description file {file_path}: {e}")
+        return None
+
+
 async def job_from_model(env: Env, name: str, worker: Worker) -> Job | None:
     await worker.emit("Reading job plays...", event="progress")
     zuul_info = await rcav2.zuul.ensure_zuul_info(env)
@@ -37,15 +49,37 @@ async def job_from_db(db: Engine, job_name: str, worker: Worker) -> Job | None:
 
 
 async def describe_job(
-    env: Env, db: Engine | None, job_name: str, worker: Worker
+    env: Env, db: Engine | None, job_name: str, worker: Worker, job_description_file: str = None
 ) -> Job | None:
+    # Load additional job description from file if provided
+    additional_description = ""
+    if job_description_file:
+        additional_description = load_job_description_file(job_description_file)
+        if additional_description:
+            await worker.emit(f"Loaded additional job description from {job_description_file}", event="progress")
+        else:
+            await worker.emit(f"Could not load job description from {job_description_file}", event="error")
+
     if db:
         if job := await job_from_db(db, job_name, worker):
+            # Append additional description if available
+            if additional_description:
+                job.description = f"{job.description}\n\nAdditional Context:\n{additional_description}"
             return job
-    return await job_from_model(env, job_name, worker)
+
+    job = await job_from_model(env, job_name, worker)
+    if job and additional_description:
+        # Append additional description if available
+        job.description = f"{job.description}\n\nAdditional Context:\n{additional_description}"
+    elif not job and additional_description:
+        # Create a job with just the additional description if no job was found
+        from rcav2.agent.zuul import Job
+        job = Job(description=additional_description, actions=[])
+
+    return job
 
 
-async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker, local_report_file: str = None) -> None:
+async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker, local_report_file: str = None, job_description_file: str = None) -> None:
     """A two step workflow with job description"""
     await worker.emit("predict", event="workflow")
 
@@ -64,8 +98,8 @@ async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker, loc
 
         # Describe job
         await worker.emit(f"Describing job {errors_report.target}...", event="progress")
-        await trace_storage.start_span("Job Description", {"job_name": errors_report.target}, worker)
-        job = await describe_job(env, db, errors_report.target, worker)
+        await trace_storage.start_span("Job Description", {"job_name": errors_report.target, "job_description_file": job_description_file}, worker)
+        job = await describe_job(env, db, errors_report.target, worker, job_description_file)
         if job:
             await worker.emit(job.model_dump(), event="job")
         await trace_storage.end_span({"job_found": job is not None}, worker)
@@ -92,7 +126,7 @@ async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker, loc
         await trace_storage.flush_traces(worker)
 
 
-async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker, local_report_file: str = None) -> None:
+async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker, local_report_file: str = None, job_description_file: str = None) -> None:
     """A two step workflow using a ReAct module"""
     await worker.emit("react", event="workflow")
 
@@ -111,8 +145,8 @@ async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker, local
 
         # Describe job
         await worker.emit(f"Describing job {errors_report.target}...", event="progress")
-        await trace_storage.start_span("Job Description", {"job_name": errors_report.target}, worker)
-        job = await describe_job(env, db, errors_report.target, worker)
+        await trace_storage.start_span("Job Description", {"job_name": errors_report.target, "job_description_file": job_description_file}, worker)
+        job = await describe_job(env, db, errors_report.target, worker, job_description_file)
         if job:
             await worker.emit(job.model_dump(), event="job")
         await trace_storage.end_span({"job_found": job is not None}, worker)
