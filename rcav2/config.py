@@ -14,3 +14,4 @@ CA_BUNDLE_PATH = os.environ.get(
 )
 COOKIE_FILE = os.environ.get("COOKIE_FILE", ".cookie")
 DATABASE_FILE = os.environ.get("DATABASE_FILE", ".db.sqlite3")
+JOB_DESCRIPTION_FILE = os.environ.get("JOB_DESCRIPTION_FILE")
