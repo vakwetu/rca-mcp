@@ -15,9 +15,15 @@ def usage():
     parser = argparse.ArgumentParser(description="Root Cause Analysis (RCA)")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--workflow")
-    parser.add_argument("--local-report", help="Path to local logjuicer JSON report file")
-    parser.add_argument("--job-description", help="Path to additional job description file")
-    parser.add_argument("URL", nargs="?", help="The build URL (optional when using --local-report)")
+    parser.add_argument(
+        "--local-report", help="Path to local logjuicer JSON report file"
+    )
+    parser.add_argument(
+        "--job-description", help="Path to additional job description file"
+    )
+    parser.add_argument(
+        "URL", nargs="?", help="The build URL (optional when using --local-report)"
+    )
     return parser.parse_args()
 
 
@@ -38,9 +44,13 @@ async def amain() -> None:
         # Run workflow...
         match args.workflow:
             case None | "predict":
-                await rcav2.workflows.rca_predict(env, None, args.URL, worker, args.local_report, args.job_description)
+                await rcav2.workflows.rca_predict(
+                    env, None, args.URL, worker, args.local_report, args.job_description
+                )
             case "react":
-                await rcav2.workflows.rca_react(env, None, args.URL, worker, args.local_report, args.job_description)
+                await rcav2.workflows.rca_react(
+                    env, None, args.URL, worker, args.local_report, args.job_description
+                )
             case "predict-no-job":
                 print("NotImplemented")
     finally:

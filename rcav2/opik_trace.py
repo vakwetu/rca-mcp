@@ -5,19 +5,17 @@
 Opik trace storage functionality for RCA analysis.
 """
 
-import os
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime
 
 try:
     import opik
     from opik import Opik, Trace, Span
 except ImportError:
-    opik = None
-    Opik = None
-    Trace = None
-    Span = None
+    opik = None  # type: ignore
+    Opik = None  # type: ignore
+    Trace = None  # type: ignore
+    Span = None  # type: ignore
 
 from rcav2.env import Env
 from rcav2.worker import Worker
@@ -45,15 +43,16 @@ class OpikTraceStorage:
             return
 
         if not OPIK_API_KEY:
-            self.log.warning("No Opik API key found. Set OPIK_API_KEY or LLM_GEMINI_KEY environment variable.")
+            self.log.warning(
+                "No Opik API key found. Set OPIK_API_KEY or LLM_GEMINI_KEY environment variable."
+            )
             return
 
         try:
-            self.client = Opik(
-                api_key=OPIK_API_KEY,
-                project_name=OPIK_PROJECT_NAME
+            self.client = Opik(api_key=OPIK_API_KEY, project_name=OPIK_PROJECT_NAME)
+            self.log.info(
+                f"Opik client initialized successfully for project: {OPIK_PROJECT_NAME}"
             )
-            self.log.info(f"Opik client initialized successfully for project: {OPIK_PROJECT_NAME}")
         except Exception as e:
             self.log.error(f"Failed to initialize Opik client: {e}")
             self.client = None
@@ -72,13 +71,13 @@ class OpikTraceStorage:
             trace_input = {
                 "build_url": build_url,
                 "job_name": job_name,
-                "analysis_type": "root_cause_analysis"
+                "analysis_type": "root_cause_analysis",
             }
 
-            self.current_trace = self.client.trace(
-                name=trace_name,
-                input=trace_input
-            )
+            if self.client is not None:
+                self.current_trace = self.client.trace(
+                    name=trace_name, input=trace_input
+                )
 
             await worker.emit(f"Started Opik trace: {trace_name}", event="progress")
             self.log.info(f"Started trace: {trace_name}")
@@ -87,15 +86,16 @@ class OpikTraceStorage:
             self.log.error(f"Failed to start trace: {e}")
             await worker.emit(f"Failed to start Opik trace: {e}", event="error")
 
-    async def start_span(self, span_name: str, input_data: Dict[str, Any], worker: Worker) -> None:
+    async def start_span(
+        self, span_name: str, input_data: Dict[str, Any], worker: Worker
+    ) -> None:
         """Start a new span within the current trace."""
         if not self.is_available() or not self.current_trace:
             return
 
         try:
             self.current_span = self.current_trace.span(
-                name=span_name,
-                input=input_data
+                name=span_name, input=input_data
             )
             await worker.emit(f"Started Opik span: {span_name}", event="progress")
             self.log.info(f"Started span: {span_name}")
@@ -131,7 +131,9 @@ class OpikTraceStorage:
             self.log.error(f"Failed to end trace: {e}")
             await worker.emit(f"Failed to end Opik trace: {e}", event="error")
 
-    async def store_error_analysis(self, report: Report, analysis_result: str, worker: Worker) -> None:
+    async def store_error_analysis(
+        self, report: Report, analysis_result: str, worker: Worker
+    ) -> None:
         """Store error analysis as a span."""
         if not self.is_available() or not self.current_trace:
             return
@@ -141,32 +143,40 @@ class OpikTraceStorage:
             error_span = self.current_trace.span(
                 name="Error Analysis",
                 input={
-                    "error_count": sum(len(logfile.errors) for logfile in report.logfiles),
+                    "error_count": sum(
+                        len(logfile.errors) for logfile in report.logfiles
+                    ),
                     "logfiles": [logfile.source for logfile in report.logfiles],
-                    "target": report.target
-                }
+                    "target": report.target,
+                },
             )
 
             # Add error details as metadata
             error_details = []
             for logfile in report.logfiles:
                 for error in logfile.errors:
-                    error_details.append({
-                        "source": logfile.source,
-                        "line": error.line,
-                        "position": error.pos
-                    })
+                    error_details.append(
+                        {
+                            "source": logfile.source,
+                            "line": error.line,
+                            "position": error.pos,
+                        }
+                    )
 
-            error_span.update(metadata={
-                "error_details": error_details,
-                "analysis_result": analysis_result
-            })
+            error_span.update(
+                metadata={
+                    "error_details": error_details,
+                    "analysis_result": analysis_result,
+                }
+            )
 
-            error_span.end(output={
-                "analysis_complete": True,
-                "errors_analyzed": len(error_details),
-                "result": analysis_result
-            })
+            error_span.end(
+                output={
+                    "analysis_complete": True,
+                    "errors_analyzed": len(error_details),
+                    "result": analysis_result,
+                }
+            )
 
             await worker.emit("Stored error analysis in Opik", event="progress")
             self.log.info("Stored error analysis")
@@ -174,7 +184,9 @@ class OpikTraceStorage:
             self.log.error(f"Failed to store error analysis: {e}")
             await worker.emit(f"Failed to store error analysis: {e}", event="error")
 
-    async def store_llm_interaction(self, prompt: str, response: str, model: str, usage: dict, worker: Worker) -> None:
+    async def store_llm_interaction(
+        self, prompt: str, response: str, model: str, usage: dict, worker: Worker
+    ) -> None:
         """Store LLM interaction details as a span."""
         if not self.is_available() or not self.current_trace:
             return
@@ -183,24 +195,19 @@ class OpikTraceStorage:
             # Create LLM interaction span
             llm_span = self.current_trace.span(
                 name=f"LLM Interaction - {model}",
-                input={
-                    "prompt": prompt,
-                    "model": model,
-                    "prompt_length": len(prompt)
-                }
+                input={"prompt": prompt, "model": model, "prompt_length": len(prompt)},
             )
 
-            llm_span.update(metadata={
-                "usage": usage,
-                "response_length": len(response)
-            })
+            llm_span.update(metadata={"usage": usage, "response_length": len(response)})
 
-            llm_span.end(output={
-                "response": response,
-                "tokens_used": usage.get("total_tokens", 0),
-                "prompt_tokens": usage.get("prompt_tokens", 0),
-                "completion_tokens": usage.get("completion_tokens", 0)
-            })
+            llm_span.end(
+                output={
+                    "response": response,
+                    "tokens_used": usage.get("total_tokens", 0),
+                    "prompt_tokens": usage.get("prompt_tokens", 0),
+                    "completion_tokens": usage.get("completion_tokens", 0),
+                }
+            )
 
             await worker.emit(f"Stored LLM interaction for {model}", event="progress")
             self.log.info(f"Stored LLM interaction for {model}")
@@ -214,7 +221,8 @@ class OpikTraceStorage:
             return
 
         try:
-            self.client.flush()
+            if self.client is not None:
+                self.client.flush()
             await worker.emit("Flushed traces to Opik", event="progress")
             self.log.info("Flushed traces to Opik")
         except Exception as e:

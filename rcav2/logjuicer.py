@@ -107,7 +107,7 @@ async def get_report_from_file(env: Env, file_path: str) -> Report:
 
     env.log.info("Loading local report from %s", file_path)
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             report_data = json.load(f)
         return rcav2.errors.json_to_report(report_data)
     except json.JSONDecodeError as e:
@@ -129,7 +129,9 @@ async def get_local_report(env: Env, url: str) -> Report:
     return make_local_report(url)
 
 
-async def get_report(env: Env, url: str, worker: None | Worker, local_report_file: str = None) -> Report:
+async def get_report(
+    env: Env, url: str, worker: None | Worker, local_report_file: str | None = None
+) -> Report:
     if local_report_file:
         return await get_report_from_file(env, local_report_file)
     if env.logjuicer_report:

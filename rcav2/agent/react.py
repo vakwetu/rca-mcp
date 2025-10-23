@@ -18,10 +18,11 @@ from rcav2.report import Report
 class RCAAccelerator(dspy.Signature):
     """You are a CI engineer, your goal is to find the RCA of this build failure.
 
-    You are given a description of the job and the list of logs file.
-    Use the read_errors tool to identify the root cause.
-    Starts with the job-output.txt, and check the other logs to collect evidence.
-    Don't stop reading errors until the root cause is fully diagnosed.
+    Your investigation strategy should be as follows:
+    1.  **Start with `job-output.txt`:** Use the `read_errors` tool on this file first to identify the final error or symptom of the failure.
+    2.  **Trace back to the root cause:** The errors in `job-output.txt` are often just symptoms. The actual root cause likely occurred earlier. The earlier logs are critical for finding the initial point of failure.
+    3.  **Follow the error trail:** Within each file you inspect, follow the sequence of errors to understand the full context of how the problem developed. Don't stop reading errors until the root cause is fully diagnosed.
+    4.  **Synthesize your findings:** Connect the events from the early logs with the final failure shown in `job-output.txt` to build a complete and accurate root cause analysis.
     """
 
     job: rcav2.agent.zuul.Job = dspy.InputField()
@@ -51,7 +52,7 @@ async def call_agent(
     errors: rcav2.errors.Report,
     worker: Worker,
     trace_storage=None,
-) -> str:
+) -> Report:
     if not job:
         job = rcav2.agent.zuul.Job(description="", actions=[])
     await worker.emit("Calling RCAAccelerator", "progress")
@@ -70,11 +71,11 @@ async def call_agent(
 
             for interaction in interactions:
                 await trace_storage.store_llm_interaction(
-                    prompt=interaction['prompt'],
-                    response=interaction['response'],
-                    model=interaction['model'],
-                    usage=interaction['usage'],
-                    worker=worker
+                    prompt=interaction["prompt"],
+                    response=interaction["response"],
+                    model=interaction["model"],
+                    usage=interaction["usage"],
+                    worker=worker,
                 )
         except Exception as e:
             await worker.emit(f"Failed to store LLM interactions: {e}", event="error")
