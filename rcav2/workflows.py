@@ -7,12 +7,46 @@ from rcav2.env import Env
 from rcav2.database import Engine
 from rcav2.worker import Worker
 from rcav2.agent.zuul import Job
+from rcav2.config import JOB_DESCRIPTION_FILE
 
 import rcav2.logjuicer
 import rcav2.zuul
 import rcav2.agent.zuul
 import rcav2.agent.predict
 import rcav2.agent.react
+
+
+def load_job_description_file() -> str | None:
+    """Load additional job description from file or URL specified by JOB_DESCRIPTION_FILE environment variable."""
+    if not JOB_DESCRIPTION_FILE:
+        return None
+
+    # Check if it's a URL (starts with http:// or https://)
+    if JOB_DESCRIPTION_FILE and JOB_DESCRIPTION_FILE.startswith(
+        ("http://", "https://")
+    ):
+        try:
+            import httpx
+
+            response = httpx.get(JOB_DESCRIPTION_FILE, timeout=30.0)
+            response.raise_for_status()
+            return response.text.strip()
+        except Exception as e:
+            print(
+                f"Error fetching job description from URL {JOB_DESCRIPTION_FILE}: {e}"
+            )
+            return None
+    else:
+        # Treat as local file path
+        try:
+            with open(JOB_DESCRIPTION_FILE, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except FileNotFoundError:
+            print(f"Job description file not found: {JOB_DESCRIPTION_FILE}")
+            return None
+        except Exception as e:
+            print(f"Error reading job description file {JOB_DESCRIPTION_FILE}: {e}")
+            return None
 
 
 async def job_from_model(env: Env, name: str, worker: Worker) -> Job | None:
@@ -40,10 +74,40 @@ async def job_from_db(db: Engine, job_name: str, worker: Worker) -> Job | None:
 async def describe_job(
     env: Env, db: Engine | None, job_name: str, worker: Worker
 ) -> Job | None:
+    # Load additional job description from file if specified
+    additional_description = load_job_description_file()
+    if additional_description:
+        source_type = (
+            "URL"
+            if JOB_DESCRIPTION_FILE
+            and JOB_DESCRIPTION_FILE.startswith(("http://", "https://"))
+            else "file"
+        )
+        await worker.emit(
+            f"Loaded additional job description from {source_type}: {JOB_DESCRIPTION_FILE}",
+            event="progress",
+        )
+
     if db:
         if job := await job_from_db(db, job_name, worker):
+            # Append additional description if available
+            if additional_description:
+                job.description = f"{job.description}\n\nAdditional Context:\n{additional_description}"
             return job
-    return await job_from_model(env, job_name, worker)
+
+    job = await job_from_model(env, job_name, worker)
+    if job and additional_description:
+        # Append additional description if available
+        job.description = (
+            f"{job.description}\n\nAdditional Context:\n{additional_description}"
+        )
+    elif not job and additional_description:
+        # Create a job with just the additional description if no job was found
+        from rcav2.agent.zuul import Job
+
+        job = Job(description=additional_description, actions=[])
+
+    return job
 
 
 async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
