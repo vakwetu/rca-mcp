@@ -19,6 +19,33 @@ The project requires a valid kerberos ticket to access the build logs from SF_DO
 
 This project requires access to Gemini.
 
+### Opik Integration
+
+This project includes integration with [Opik](https://www.comet.com/docs/opik/) for tracing and observability of LLM interactions. Opik helps track and analyze the prompts and responses sent to language models during RCA analysis.
+
+#### Local Opik Server
+
+By default, the integration assumes a local Opik server is running. No additional configuration is required - traces will be automatically sent to the local Opik instance.
+Setting up a local Opik server is super easy.  Just follow the instructions at [Local Deployment](https://www.comet.com/docs/opik/self-host/local_deployment/)
+
+#### Cloud Opik Deployment
+
+To use Opik Cloud or a custom Opik deployment, set the following environment variables:
+
+```bash
+export OPIK_API_KEY=your-opik-api-key
+export OPIK_PROJECT_NAME=your-project-name  # Optional, defaults to "rca-mcp"
+```
+
+#### Disabling Opik Integration
+
+To explicitly disable Opik integration, set the following environment variable:
+
+```bash
+export OPIK_DISABLED=true
+```
+
+If you don't set this variable, the application will automatically fall back to running without Opik integration if the Opik server is unavailable or if there are configuration issues.
 
 ## Usage
 
