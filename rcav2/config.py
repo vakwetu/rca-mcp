@@ -15,3 +15,9 @@ CA_BUNDLE_PATH = os.environ.get(
 COOKIE_FILE = os.environ.get("COOKIE_FILE", ".cookie")
 DATABASE_FILE = os.environ.get("DATABASE_FILE", ".db.sqlite3")
 JOB_DESCRIPTION_FILE = os.environ.get("JOB_DESCRIPTION_FILE")
+
+# Opik configuration
+OPIK_API_KEY = os.environ.get("OPIK_API_KEY")
+OPIK_PROJECT_NAME = os.environ.get("OPIK_PROJECT_NAME", "rca-mcp")
+OPIK_URL_OVERRIDE = os.environ.get("OPIK_URL_OVERRIDE")  # For self-hosted deployments
+OPIK_WORKSPACE = os.environ.get("OPIK_WORKSPACE")  # For cloud deployments
