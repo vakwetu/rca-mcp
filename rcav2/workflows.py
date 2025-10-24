@@ -71,41 +71,32 @@ async def job_from_db(db: Engine, job_name: str, worker: Worker) -> Job | None:
     return None
 
 
+async def describe_job_base(
+    env: Env, db: Engine | None, job_name: str, worker: Worker
+) -> Job | None:
+    if db:
+        if job := await job_from_db(db, job_name, worker):
+            return job
+    return await job_from_model(env, job_name, worker)
+
+
 async def describe_job(
     env: Env, db: Engine | None, job_name: str, worker: Worker
 ) -> Job | None:
+    job = await describe_job_base(env, db, job_name, worker)
     # Load additional job description from file if specified
     additional_description = load_job_description_file()
     if additional_description:
-        source_type = (
-            "URL"
-            if JOB_DESCRIPTION_FILE
-            and JOB_DESCRIPTION_FILE.startswith(("http://", "https://"))
-            else "file"
-        )
         await worker.emit(
-            f"Loaded additional job description from {source_type}: {JOB_DESCRIPTION_FILE}",
+            f"Loaded additional job description from {JOB_DESCRIPTION_FILE}",
             event="progress",
         )
-
-    if db:
-        if job := await job_from_db(db, job_name, worker):
-            # Append additional description if available
-            if additional_description:
-                job.description = f"{job.description}\n\nAdditional Context:\n{additional_description}"
-            return job
-
-    job = await job_from_model(env, job_name, worker)
-    if job and additional_description:
-        # Append additional description if available
-        job.description = (
-            f"{job.description}\n\nAdditional Context:\n{additional_description}"
-        )
-    elif not job and additional_description:
-        # Create a job with just the additional description if no job was found
-        from rcav2.agent.zuul import Job
-
-        job = Job(description=additional_description, actions=[])
+        if job:
+            # Append additional description
+            job.description += f"\n\nAdditional Context:\n{additional_description}"
+        else:
+            # Create a job with just the additional description if no job was found
+            job = Job(description=additional_description, actions=[])
 
     return job
 
