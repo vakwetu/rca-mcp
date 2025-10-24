@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import dspy  # type: ignore[import-untyped]
+from dspy.utils.callback import BaseCallback  # type: ignore[import-untyped]
 import os
 
 import opik
@@ -18,13 +19,31 @@ def get_lm(name: str, max_tokens: int) -> dspy.LM:
     )
 
 
+# From: https://dspy.ai/tutorials/observability/?h=callback#building-a-custom-logging-solution
+# 1. Define a custom callback class that extends BaseCallback class
+class AgentLoggingCallback(BaseCallback):
+    # 2. Implement on_module_end handler to run a custom logging code.
+    def on_module_end(self, call_id, outputs, exception):
+        step = "Reasoning" if self._is_reasoning_output(outputs) else "Acting"
+        print(f"== {step} Step ===")
+        for k, v in outputs.items():
+            print(f"  {k}: {v}")
+        print("\n")
+
+    def _is_reasoning_output(self, outputs):
+        return any(k.startswith("Thought") for k in outputs.keys())
+
+
 def init_dspy() -> None:
     dspy.settings.configure(track_usage=True)
 
     # Check if Opik is explicitly disabled
     if os.environ.get("OPIK_DISABLED", "false").lower() == "true":
         print("Opik integration disabled by OPIK_DISABLED environment variable")
-        dspy.configure(lm=get_lm("gemini-2.5-pro", 1024 * 1024))
+        callbacks = []  # type: ignore
+        if os.environ.get("DSPY_DEBUG"):
+            callbacks.append(AgentLoggingCallback())
+        dspy.configure(lm=get_lm("gemini-2.5-pro", 1024 * 1024), callbacks=callbacks)
         return
 
     # Configure Opik - use local deployment by default
