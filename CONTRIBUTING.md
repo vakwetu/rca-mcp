@@ -28,8 +28,54 @@ This project includes integration with [Opik](https://www.comet.com/docs/opik/) 
 By default, the integration assumes a local Opik server is running. No additional configuration is required - traces will be automatically sent to the local Opik instance.
 Setting up a local Opik server is super easy.  Just follow the instructions at [Local Deployment](https://www.comet.com/docs/opik/self-host/local_deployment/)
 
-#### Cloud Opik Deployment
+#### Opik Server on Fedora 42 with docker-podman
+To run Opik server on Fedora 42 with docker-podman, follow these steps:
 
+1.  Install podman:
+    ```bash
+    sudo dnf install -y podman podman-docker podman-compose
+    ```
+
+2.  Start podman and podman socket:
+    ```bash
+    sudo systemctl enable podman
+    sudo systemctl start podman
+
+    sudo systemctl --user enable podman.socket
+    sudo systemctl --user start podman.socket
+
+
+3. Set DOCKER_HOST env variable:
+    ```bash
+    export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/podman/podman.sock"
+    ```
+
+3.  Run the Opik server using docker-compose:
+    ```bash
+    git clone https://github.com/comet-ml/opik.git
+    cd opik/deployment/docker-compose
+    curl https://github.com/RCAccelerator/rca-api/blob/main/deployment/opik/docker-compose.patch | git apply -v
+    docker compose --profile opik up --detach
+    ```
+4. Teardown the Opik server:
+    ```bash
+    cd opik/deployment/docker-compose
+    docker compose --profile opik down --volumes
+    ```
+
+#### Pull limits when deploying the Opik server
+To workaraund pull limits you can modify `~/.config/containers/registries.conf`:
+```toml
+[[registry]]
+    location = "docker.io"
+    insecure = false
+
+[[registry.mirror]]
+    location = "mirror.gcr.io"
+    insecure = false
+```
+
+#### Cloud Opik Deployment
 To use Opik Cloud or a custom Opik deployment, set the following environment variables:
 
 ```bash
