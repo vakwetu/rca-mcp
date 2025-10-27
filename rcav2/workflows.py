@@ -12,10 +12,13 @@ from rcav2.database import Engine
 from rcav2.worker import Worker
 from rcav2.config import JOB_DESCRIPTION_FILE
 from rcav2.agent.ansible import Job
+from rcav2.models.report import Report
 
 import rcav2.tools.logjuicer
 import rcav2.tools.zuul
 import rcav2.agent.ansible
+import rcav2.agent.logjuicer_agent
+import rcav2.agent.jira_agent
 import rcav2.agent.predict
 import rcav2.agent.react
 
@@ -117,7 +120,38 @@ async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker) -> 
         await worker.emit(job.model_dump(), event="job")
 
     rca_agent = rcav2.agent.predict.make_agent()
-    report = await rcav2.agent.predict.call_agent(rca_agent, job, errors_report, worker)
+    (description, evidences) = await rcav2.agent.predict.call_agent(
+        rca_agent, job, errors_report, worker
+    )
+
+    report = Report(description=description, evidences=evidences, jira_tickets=[])
+    await worker.emit(report.model_dump(), event="report")
+
+
+async def rca_multi(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
+    """A three step workflow with job description and jira agent"""
+    await worker.emit("multi", event="workflow")
+    await worker.emit("Fetching build errors...", event="progress")
+    errors_report = await rcav2.tools.logjuicer.get_report(env, url, worker)
+
+    # Step1: Getting build description
+    await worker.emit(f"Describing job {errors_report.target}...", event="progress")
+    job = await describe_job(env, db, errors_report.target, worker)
+    if job:
+        await worker.emit(job.model_dump(), event="job")
+
+    # Step2: Analyzing build errors
+    rca_agent = rcav2.agent.logjuicer_agent.make_agent(errors_report, worker)
+    (description, evidences) = await rcav2.agent.logjuicer_agent.call_agent(
+        rca_agent, job, errors_report, worker
+    )
+
+    # Step3: Gathering additional context
+    jira_agent = rcav2.agent.jira_agent.make_agent(worker, env)
+    tickets = await rcav2.agent.jira_agent.call_agent(
+        jira_agent, description, evidences, worker
+    )
+    report = Report(description=description, evidences=evidences, jira_tickets=tickets)
     await worker.emit(report.model_dump(), event="report")
 
 

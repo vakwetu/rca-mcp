@@ -51,7 +51,7 @@ class RCAAccelerator(dspy.Signature):
     report: Report = dspy.OutputField()
 
 
-def make_agent(errors: rcav2.models.errors.Report, worker: Worker, env) -> dspy.Predict:
+def make_agent(errors: rcav2.models.errors.Report, worker: Worker, env) -> dspy.ReAct:
     async def read_errors(source: str) -> list[rcav2.models.errors.Error]:
         """Read the errors contained in a source log, including the before after context"""
         await worker.emit(f"Checking {source}", "progress")
@@ -109,7 +109,7 @@ def make_agent(errors: rcav2.models.errors.Report, worker: Worker, env) -> dspy.
 
 
 async def call_agent(
-    agent: dspy.Predict,
+    agent: dspy.ReAct,
     job: rcav2.agent.ansible.Job | None,
     errors: rcav2.models.errors.Report,
     worker: Worker,

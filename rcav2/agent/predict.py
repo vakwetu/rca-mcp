@@ -5,7 +5,7 @@ import dspy  # type: ignore[import-untyped]
 
 import rcav2.models.errors
 import rcav2.agent.ansible
-from rcav2.models.report import Report
+from rcav2.models.report import Evidence
 from rcav2.worker import Worker
 
 
@@ -23,10 +23,9 @@ class RCAAccelerator(dspy.Signature):
 
     job: rcav2.agent.ansible.Job = dspy.InputField()
 
-    # TODO: provide tools instead to access the raw reports. Then remove the errors input
     errors: str = dspy.InputField()
-
-    report: Report = dspy.OutputField()
+    root_cause: str = dspy.OutputField()
+    evidences: list[Evidence] = dspy.OutputField()
 
 
 def make_agent() -> dspy.Predict:
@@ -38,15 +37,14 @@ async def call_agent(
     job: rcav2.agent.ansible.Job | None,
     errors: rcav2.models.errors.Report,
     worker: Worker,
-) -> Report:
+) -> tuple[str, list[Evidence]]:
     if not job:
         job = rcav2.agent.ansible.Job(description="", actions=[])
     await worker.emit("Calling RCAAccelerator", "progress")
-    agent.set_lm(rcav2.model.get_lm("gemini-2.5-pro", max_tokens=1024 * 1024))
     errors_report = report_to_prompt(errors)
     result = await agent.acall(job=job, errors=errors_report)
     await rcav2.model.emit_dspy_usage(result, worker)
-    return result.report
+    return (result.root_cause, result.evidences)
 
 
 def keep_context(source: str) -> bool:

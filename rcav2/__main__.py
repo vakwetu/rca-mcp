@@ -35,10 +35,10 @@ async def run_cli() -> None:
         match args.workflow:
             case "predict":
                 await rcav2.workflows.rca_predict(env, None, args.URL, worker)
+            case "multi":
+                await rcav2.workflows.rca_multi(env, None, args.URL, worker)
             case None | "react":
                 await rcav2.workflows.rca_react(env, None, args.URL, worker)
-            case "predict-no-job":
-                print("NotImplemented")
     finally:
         env.close()
 
