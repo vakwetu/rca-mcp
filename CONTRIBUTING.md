@@ -29,7 +29,7 @@ By default, the integration assumes a local Opik server is running. No additiona
 Setting up a local Opik server is super easy.  Just follow the instructions at [Local Deployment](https://www.comet.com/docs/opik/self-host/local_deployment/)
 
 #### Opik Server on Fedora 42 with docker-podman
-To run Opik server on Fedora 42 with docker-podman, follow these steps:
+To run Opik server on Fedora 42 with podman-docker, follow these steps:
 
 1.  Install podman:
     ```bash
@@ -54,7 +54,7 @@ To run Opik server on Fedora 42 with docker-podman, follow these steps:
     ```bash
     git clone https://github.com/comet-ml/opik.git
     cd opik/deployment/docker-compose
-    curl https://github.com/RCAccelerator/rca-api/blob/main/deployment/opik/docker-compose.patch | git apply -v
+    curl https://raw.githubusercontent.com/RCAccelerator/rca-api/refs/heads/main/deployment/opik/docker-compose.patch | git apply -v
     docker compose --profile opik up --detach
     ```
 4. Teardown the Opik server:
