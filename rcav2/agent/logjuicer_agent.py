@@ -6,7 +6,7 @@ import re
 
 import rcav2.models.errors
 import rcav2.agent.ansible
-from rcav2.models.report import Evidence
+from rcav2.models.report import PossibleRootCause
 from rcav2.worker import Worker
 
 
@@ -18,6 +18,15 @@ class RCAAccelerator(dspy.Signature):
     2.  **Trace back to the root cause:** The errors in `job-output.txt` are often just symptoms. The actual root cause likely occurred earlier. The earlier logs are critical for finding the initial point of failure.
     3.  **Follow the error trail:** Within each file you inspect, follow the sequence of errors to understand the full context of how the problem developed. The ultimate root cause is somewhere in the available logs. Use the `search_errors` tool to find all the evidences. Don't stop reading errors until the root cause is fully diagnosed.
     4.  **Synthesize your findings:** Connect the events from the early logs with the final failure shown in `job-output.txt` to build a complete and accurate root cause analysis.
+    5.  **Identify all possible root causes:** After a full analysis, identify all possible root causes (usually 1-3 possibilities).
+
+    You should identify all possible root causes of the failure.
+    For each root cause, you should provide the following information:
+    - cause: The root cause of the failure
+    - evidences: The evidence that supports the root cause
+
+    You should order the root causes by the likelihood of the root cause being the actual root cause,
+    starting with the most likely root cause.
     """
 
     job: rcav2.agent.ansible.Job = dspy.InputField()
@@ -25,8 +34,7 @@ class RCAAccelerator(dspy.Signature):
     # TODO: provide tools instead to access the raw reports. Then remove the errors input
     errors: str = dspy.InputField()
 
-    root_cause: str = dspy.OutputField()
-    evidences: list[Evidence] = dspy.OutputField()
+    possible_root_causes: list[PossibleRootCause] = dspy.OutputField()
 
 
 def make_agent(errors: rcav2.models.errors.Report, worker: Worker) -> dspy.ReAct:
@@ -58,7 +66,7 @@ async def call_agent(
     job: rcav2.agent.ansible.Job | None,
     errors: rcav2.models.errors.Report,
     worker: Worker,
-) -> tuple[str, list[Evidence]]:
+) -> list[PossibleRootCause]:
     if not job:
         job = rcav2.agent.ansible.Job(description="", actions=[])
     await worker.emit("Calling RCAAccelerator", "progress")
@@ -67,4 +75,4 @@ async def call_agent(
         errors_count[logfile.source] = len(logfile.errors)
     result = await agent.acall(job=job, errors=errors_count)
     await rcav2.model.emit_dspy_usage(result, worker)
-    return (result.root_cause, result.evidences)
+    return result.possible_root_causes

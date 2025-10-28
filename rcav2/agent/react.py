@@ -23,7 +23,15 @@ class RCAAccelerator(dspy.Signature):
     3.  **Follow the error trail:** Within each file you inspect, follow the sequence of errors to understand the full context of how the problem developed. The ultimate root cause is somewhere in the available logs. Don't stop reading errors until the root cause is fully diagnosed.
     4.  **Synthesize your findings:** Connect the events from the early logs with the final failure shown in `job-output.txt` to build a complete and accurate root cause analysis.
 
-    After identifying the root cause, ALWAYS search for related Jira tickets to correlate with known issues:
+    You should identify all possible root causes of the failure.
+    For each root cause, you should provide the following information:
+    - cause: The root cause of the failure
+    - evidences: The evidence that supports the root cause
+
+    You should order the root causes by the likelihood of the root cause being the actual root cause,
+    starting with the most likely root cause.
+
+    After identifying the root causes, ALWAYS search for related Jira tickets to correlate with known issues:
     1. Search for similar error messages - extract key error terms and search in Jira
     2. Look for known bugs or issues that match the failure pattern
     3. Find recent failures reported in the same area or component

@@ -24,9 +24,13 @@ interface Evidence {
   source: string;
 }
 
-interface Report {
-  description: string;
+interface PossibleRootCause {
+  cause: string;
   evidences: Evidence[];
+}
+
+interface Report {
+  possible_root_causes?: PossibleRootCause[];
   jira_tickets?: JiraTicket[];
 }
 
@@ -257,30 +261,40 @@ export function RcaComponent(
                   </div>
                 )}
               </div>
-              <h3 className="font-semibold">Root Cause Description</h3>
-              <div className="prose dark:prose-invert max-w-none">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    pre: ({ node, ...props }) => (
-                      <pre
-                        {...props}
-                        className="whitespace-pre-wrap break-all"
-                      />
-                    ),
-                  }}
-                >
-                  {report.description}
-                </ReactMarkdown>
-              </div>
-              <h3 className="font-semibold pt-2">Evidences</h3>
-              <ul className="list-none p-0 m-0 font-mono text-sm space-y-2">
-                {report.evidences.map((evidence, index) => (
-                  <li key={index} className="pt-1 break-words">
-                    <Evidence error={evidence.error} source={evidence.source} />
-                  </li>
-                ))}
-              </ul>
+              {report.possible_root_causes && report.possible_root_causes.length > 0 && (
+                <>
+                  {report.possible_root_causes.map((rootCause, rootCauseIndex) => (
+                    <div key={rootCauseIndex} className="mb-6">
+                      <h3 className="font-semibold">
+                        Possible Root Cause {rootCauseIndex + 1}
+                      </h3>
+                      <div className="prose dark:prose-invert max-w-none">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            pre: ({ node, ...props }) => (
+                              <pre
+                                {...props}
+                                className="whitespace-pre-wrap break-all"
+                              />
+                            ),
+                          }}
+                        >
+                          {rootCause.cause}
+                        </ReactMarkdown>
+                      </div>
+                      <h3 className="font-semibold pt-2">Evidences</h3>
+                      <ul className="list-none p-0 m-0 font-mono text-sm space-y-2">
+                        {rootCause.evidences.map((evidence, index) => (
+                          <li key={index} className="pt-1 break-words">
+                            <Evidence error={evidence.error} source={evidence.source} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </>
+              )}
               {report.jira_tickets && report.jira_tickets.length > 0 && (
                 <>
                   <h3 className="font-semibold pt-4">Related JIRA Tickets</h3>
