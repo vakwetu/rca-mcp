@@ -6,6 +6,7 @@ This module defines the RCA workflows.
 """
 
 import json
+import opik
 
 from rcav2.env import Env
 from rcav2.database import Engine
@@ -114,18 +115,34 @@ async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker) -> 
     await worker.emit("Fetching build errors...", event="progress")
     errors_report = await rcav2.tools.logjuicer.get_report(env, url, worker)
 
-    await worker.emit(f"Describing job {errors_report.target}...", event="progress")
-    job = await describe_job(env, db, errors_report.target, worker)
-    if job:
-        await worker.emit(job.model_dump(), event="job")
+    # Create a trace context for the entire workflow
+    build_id = url.split("/")[-1] if "/" in url else "unknown"
+    trace_name = f"RCA Predict - Build {build_id}"
+    metadata = {
+        "build_url": url,
+        "build_id": build_id,
+        "workflow_type": "predict",
+    }
+    tags = ["rca-mcp", "predict"]
 
-    rca_agent = rcav2.agent.predict.make_agent()
-    (description, evidences) = await rcav2.agent.predict.call_agent(
-        rca_agent, job, errors_report, worker
-    )
+    # Use the same project name as configured for DSPy
+    from rcav2.config import OPIK_PROJECT_NAME
 
-    report = Report(description=description, evidences=evidences, jira_tickets=[])
-    await worker.emit(report.model_dump(), event="report")
+    with opik.start_as_current_trace(
+        trace_name, metadata=metadata, tags=tags, project_name=OPIK_PROJECT_NAME
+    ):
+        await worker.emit(f"Describing job {errors_report.target}...", event="progress")
+        job = await describe_job(env, db, errors_report.target, worker)
+        if job:
+            await worker.emit(job.model_dump(), event="job")
+
+        rca_agent = rcav2.agent.predict.make_agent()
+        (description, evidences) = await rcav2.agent.predict.call_agent(
+            rca_agent, job, errors_report, worker
+        )
+
+        report = Report(description=description, evidences=evidences, jira_tickets=[])
+        await worker.emit(report.model_dump(), event="report")
 
 
 async def rca_multi(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
@@ -134,25 +151,43 @@ async def rca_multi(env: Env, db: Engine | None, url: str, worker: Worker) -> No
     await worker.emit("Fetching build errors...", event="progress")
     errors_report = await rcav2.tools.logjuicer.get_report(env, url, worker)
 
-    # Step1: Getting build description
-    await worker.emit(f"Describing job {errors_report.target}...", event="progress")
-    job = await describe_job(env, db, errors_report.target, worker)
-    if job:
-        await worker.emit(job.model_dump(), event="job")
+    # Create a trace context for the entire workflow
+    build_id = url.split("/")[-1] if "/" in url else "unknown"
+    trace_name = f"RCA Multi - Build {build_id}"
+    metadata = {
+        "build_url": url,
+        "build_id": build_id,
+        "workflow_type": "multi",
+    }
+    tags = ["rca-mcp", "multi"]
 
-    # Step2: Analyzing build errors
-    rca_agent = rcav2.agent.logjuicer_agent.make_agent(errors_report, worker)
-    (description, evidences) = await rcav2.agent.logjuicer_agent.call_agent(
-        rca_agent, job, errors_report, worker
-    )
+    # Use the same project name as configured for DSPy
+    from rcav2.config import OPIK_PROJECT_NAME
 
-    # Step3: Gathering additional context
-    jira_agent = rcav2.agent.jira_agent.make_agent(worker, env)
-    tickets = await rcav2.agent.jira_agent.call_agent(
-        jira_agent, description, evidences, worker
-    )
-    report = Report(description=description, evidences=evidences, jira_tickets=tickets)
-    await worker.emit(report.model_dump(), event="report")
+    with opik.start_as_current_trace(
+        trace_name, metadata=metadata, tags=tags, project_name=OPIK_PROJECT_NAME
+    ):
+        # Step1: Getting build description
+        await worker.emit(f"Describing job {errors_report.target}...", event="progress")
+        job = await describe_job(env, db, errors_report.target, worker)
+        if job:
+            await worker.emit(job.model_dump(), event="job")
+
+        # Step2: Analyzing build errors
+        rca_agent = rcav2.agent.logjuicer_agent.make_agent(errors_report, worker)
+        (description, evidences) = await rcav2.agent.logjuicer_agent.call_agent(
+            rca_agent, job, errors_report, worker
+        )
+
+        # Step3: Gathering additional context
+        jira_agent = rcav2.agent.jira_agent.make_agent(worker, env)
+        tickets = await rcav2.agent.jira_agent.call_agent(
+            jira_agent, description, evidences, worker
+        )
+        report = Report(
+            description=description, evidences=evidences, jira_tickets=tickets
+        )
+        await worker.emit(report.model_dump(), event="report")
 
 
 async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker) -> None:
@@ -161,11 +196,29 @@ async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker) -> No
     await worker.emit("Fetching build errors...", event="progress")
     errors_report = await rcav2.tools.logjuicer.get_report(env, url, worker)
 
-    await worker.emit(f"Describing job {errors_report.target}...", event="progress")
-    job = await describe_job(env, db, errors_report.target, worker)
-    if job:
-        await worker.emit(job.model_dump(), event="job")
+    # Create a trace context for the entire workflow
+    build_id = url.split("/")[-1] if "/" in url else "unknown"
+    trace_name = f"RCA React - Build {build_id}"
+    metadata = {
+        "build_url": url,
+        "build_id": build_id,
+        "workflow_type": "react",
+    }
+    tags = ["rca-mcp", "react"]
 
-    rca_agent = rcav2.agent.react.make_agent(errors_report, worker, env)
-    report = await rcav2.agent.react.call_agent(rca_agent, job, errors_report, worker)
-    await worker.emit(report.model_dump(), event="report")
+    # Use the same project name as configured for DSPy
+    from rcav2.config import OPIK_PROJECT_NAME
+
+    with opik.start_as_current_trace(
+        trace_name, metadata=metadata, tags=tags, project_name=OPIK_PROJECT_NAME
+    ):
+        await worker.emit(f"Describing job {errors_report.target}...", event="progress")
+        job = await describe_job(env, db, errors_report.target, worker)
+        if job:
+            await worker.emit(job.model_dump(), event="job")
+
+        rca_agent = rcav2.agent.react.make_agent(errors_report, worker, env)
+        report = await rcav2.agent.react.call_agent(
+            rca_agent, job, errors_report, worker
+        )
+        await worker.emit(report.model_dump(), event="report")
