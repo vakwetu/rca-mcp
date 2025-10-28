@@ -94,7 +94,7 @@ def report_to_prompt(report: rcav2.models.errors.Report) -> str:
     """Convert a report to a LLM prompt
 
     >>> report_to_prompt(rcav2.models.errors.json_to_report(TEST_REPORT))
-    '\\n## zuul/overcloud.log\\noops'
+    '\\n## \\n## example.com/zuul/overcloud.log\\noops\\noops'
     """
     lines = []
     for logfile in report.logfiles:
@@ -115,7 +115,9 @@ TEST_REPORT = dict(
     target={"Zuul": {"job_name": "tox", "log_url": "https://logserver/build"}},
     log_reports=[
         dict(
-            source={"RawFile": {"Remote": [12, "example.com/zuul/overcloud.log"]}},
+            source={
+                "RawFile": {"Remote": [12, "\n## example.com/zuul/overcloud.log\noops"]}
+            },
             anomalies=[
                 {"before": [], "anomaly": {"line": "oops", "pos": 42}, "after": []}
             ],
