@@ -22,6 +22,7 @@ class RCAAccelerator(dspy.Signature):
     INVESTIGATION STRATEGY
     ============================================================================
 
+<<<<<<< HEAD
     1. **Determine Build Stage (if log_url is provided):**
        - Use `check_build_log_directory` to check for common build directories:
          * '/tmp/build'

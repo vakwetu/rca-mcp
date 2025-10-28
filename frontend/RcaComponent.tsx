@@ -49,11 +49,18 @@ function Spinner() {
   );
 }
 
-function Evidence({ error, source }: Evidence) {
+function Evidence({ error, source }: { error: string; source: string }) {
   return (
     <div>
       <div className="bg-slate-100">
-        <a className="cursor-pointer">{source}</a>
+        <a
+          href={source}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="cursor-pointer hover:underline"
+        >
+          {source}
+        </a>
       </div>
       <pre className="pl-2 font-mono break-all whitespace-pre-wrap">{error}</pre>
     </div>
@@ -310,7 +317,10 @@ export function RcaComponent(
                       <ul className="list-none p-0 m-0 font-mono text-sm space-y-2">
                         {rootCause.evidences.map((evidence, index) => (
                           <li key={index} className="pt-1 break-words">
-                            <Evidence error={evidence.error} source={evidence.source} />
+                            <Evidence
+                              error={evidence.error}
+                              source={evidence.source}
+                            />
                           </li>
                         ))}
                       </ul>
