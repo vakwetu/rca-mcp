@@ -6,6 +6,7 @@ This module defines the global environment shared by the other modules.
 """
 
 import ssl
+import re
 import httpx
 import pathlib
 import logging
@@ -44,6 +45,8 @@ class Env:
         self.jira: Jira | None = None
         self.slack: SlackClient | None = None
         self.extra_description: str | None = None
+
+        self.ignore_lines: re.Pattern | None = None
 
         # Initialize JIRA client if credentials are available
         if JIRA_URL and JIRA_API_KEY and JIRA_RCA_PROJECTS:
