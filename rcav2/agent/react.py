@@ -6,7 +6,6 @@ A next-gen rca agent that reads the errors as needed
 """
 
 import dspy  # type: ignore[import-untyped]
-import re
 
 import rcav2.models.errors
 import rcav2.model
