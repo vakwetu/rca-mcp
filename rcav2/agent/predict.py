@@ -5,7 +5,7 @@ import dspy  # type: ignore[import-untyped]
 
 import rcav2.models.errors
 import rcav2.agent.ansible
-from rcav2.models.report import Evidence
+from rcav2.models.report import PossibleRootCause
 from rcav2.worker import Worker
 
 
@@ -18,14 +18,21 @@ class RCAAccelerator(dspy.Signature):
     1.  **Recognize Symptoms:** The errors in `job-output.txt` are often just symptoms. The actual root cause likely occurred earlier.
     2.  **Trace Back to the Root Cause:** Use the log file list to examine logs that came before `job-output.txt`. These earlier logs are critical for finding the initial point of failure.
     3.  **Analyze All Evidence:** It is crucial that you analyze all the provided errors before drawing a conclusion. Do not stop at the first error you find.
-    4.  **Identify the Root Cause:** After a full analysis, identify the definitive root cause.
+    4.  **Identify the Root Cause:** After a full analysis, identify all possible root causes (usually 1-3 possibilities).
+
+    You should identify all possible root causes of the failure.
+    For each root cause, you should provide the following information:
+    - cause: The root cause of the failure
+    - evidences: The evidence that supports the root cause
+
+    You should order the root causes by the likelihood of the root cause being the actual root cause,
+    starting with the most likely root cause.
     """
 
     job: rcav2.agent.ansible.Job = dspy.InputField()
 
     errors: str = dspy.InputField()
-    root_cause: str = dspy.OutputField()
-    evidences: list[Evidence] = dspy.OutputField()
+    possible_root_causes: list[PossibleRootCause] = dspy.OutputField()
 
 
 def make_agent() -> dspy.Predict:
@@ -37,14 +44,14 @@ async def call_agent(
     job: rcav2.agent.ansible.Job | None,
     errors: rcav2.models.errors.Report,
     worker: Worker,
-) -> tuple[str, list[Evidence]]:
+) -> list[PossibleRootCause]:
     if not job:
         job = rcav2.agent.ansible.Job(description="", actions=[])
     await worker.emit("Calling RCAAccelerator", "progress")
     errors_report = report_to_prompt(errors)
     result = await agent.acall(job=job, errors=errors_report)
     await rcav2.model.emit_dspy_usage(result, worker)
-    return (result.root_cause, result.evidences)
+    return result.possible_root_causes
 
 
 def keep_context(source: str) -> bool:

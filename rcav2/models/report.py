@@ -9,6 +9,11 @@ class Evidence(BaseModel):
     source: str
 
 
+class PossibleRootCause(BaseModel):
+    cause: str
+    evidences: list[Evidence]
+
+
 class JiraTicket(BaseModel):
     key: str
     url: str
@@ -16,6 +21,5 @@ class JiraTicket(BaseModel):
 
 
 class Report(BaseModel):
-    description: str
-    evidences: list[Evidence]
+    possible_root_causes: list[PossibleRootCause] = []
     jira_tickets: list[JiraTicket] = []
