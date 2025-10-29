@@ -18,20 +18,24 @@ class RCAAccelerator(dspy.Signature):
     """You are a CI engineer, your goal is to find the RCA of this build failure.
 
     Your investigation strategy should be as follows:
-    1.  **Start with `job-output.txt`:** Use the `read_errors` tool on this file first to identify the final error or symptom of the failure.
-    2.  **Trace back to the root cause:** The errors in `job-output.txt` are often just symptoms. The actual root cause likely occurred earlier. The earlier logs are critical for finding the initial point of failure.
-    3.  **Follow the error trail:** Within each file you inspect, follow the sequence of errors to understand the full context of how the problem developed. The ultimate root cause is somewhere in the available logs. Don't stop reading errors until the root cause is fully diagnosed.
-    4.  **Synthesize your findings:** Connect the events from the early logs with the final failure shown in `job-output.txt` to build a complete and accurate root cause analysis.
+    1.  **Use the build log URL (if provided) to determine the stage at which the job failed:**
+        - Use `check_build_log_directory` to check for common build directories like '/tmp/build', '/workspace', '/opt/stack', etc.
+        - This helps identify which stage of the build process was reached before failure
+        - Follow the instructions in the job description for stage-specific analysis
+    2.  **Then look at `job-output.txt`:** Use the `read_errors` tool on this file first to identify the final error or symptom of the failure.
+    3.  **Trace back to the root cause:** The errors in `job-output.txt` are often just symptoms. The actual root cause likely occurred earlier. The earlier logs are critical for finding the initial point of failure.
+    4.  **Follow the error trail:** Within each file you inspect, follow the sequence of errors to understand the full context of how the problem developed. The ultimate root cause is somewhere in the available logs. Don't stop reading errors until the root cause is fully diagnosed.
+    5.  **Synthesize your findings:** Connect the events from the early logs with the final failure shown in `job-output.txt` to build a complete and accurate root cause analysis.
 
     You should identify all possible root causes of the failure.
     For each root cause, you should provide the following information:
-    - cause: The root cause of the failure
+    - cause: The root cause of the failure, including the stage at which the root cause occurred.
     - evidences: The evidence that supports the root cause
 
     You should order the root causes by the likelihood of the root cause being the actual root cause,
     starting with the most likely root cause.
 
-    After identifying the root causes, ALWAYS search for related Jira tickets to correlate with known issues:
+    Only after identifying all the possible root causes, ALWAYS search for related Jira tickets to correlate with known issues:
     1. Search for similar error messages - extract key error terms and search in Jira
     2. Look for known bugs or issues that match the failure pattern
     3. Find recent failures reported in the same area or component
@@ -59,10 +63,16 @@ class RCAAccelerator(dspy.Signature):
         desc="list of source and their error count"
     )
 
+    log_url: str | None = dspy.InputField(
+        desc="URL to the build logs for stage analysis"
+    )
+
     report: Report = dspy.OutputField()
 
 
-def make_agent(errors: rcav2.models.errors.Report, worker: Worker, env) -> dspy.ReAct:
+def make_agent(
+    errors: rcav2.models.errors.Report, worker: Worker, env, log_url: str | None = None
+) -> dspy.ReAct:
     async def read_errors(source: str) -> list[rcav2.models.errors.Error]:
         """Read the errors contained in a source log, including the before after context"""
         await worker.emit(f"Checking {source}", "progress")
@@ -122,8 +132,58 @@ def make_agent(errors: rcav2.models.errors.Report, worker: Worker, env) -> dspy.
         )
         return env.slack.search_messages(query, count)
 
+    async def check_build_log_directory(directory_path: str) -> dict[str, str | bool]:
+        """Check if a directory exists in the build logs.
+
+        Args:
+            directory_path: The directory path to check for (e.g., '/tmp/build', '/workspace')
+
+        Returns:
+            Dictionary with 'exists' (bool) and 'message' (str) fields
+        """
+        if not log_url:
+            return {"exists": False, "message": "No log URL provided"}
+
+        try:
+            await worker.emit(
+                f"Checking for directory '{directory_path}' in build logs", "progress"
+            )
+
+            # Construct the URL to check: log_url/directory_path
+            # Remove leading slash from directory_path to avoid double slashes
+            clean_path = directory_path.lstrip("/")
+            check_url = f"{log_url.rstrip('/')}/{clean_path}"
+
+            # Try to access the directory URL
+            response = await env.httpx.get(check_url, timeout=30.0)
+
+            if response.status_code == 200:
+                return {
+                    "exists": True,
+                    "message": f"Directory '{directory_path}' exists in build logs (accessible at {check_url})",
+                }
+            elif response.status_code == 404:
+                return {
+                    "exists": False,
+                    "message": f"Directory '{directory_path}' not found in build logs (404 at {check_url})",
+                }
+            else:
+                return {
+                    "exists": False,
+                    "message": f"Directory '{directory_path}' check failed with status {response.status_code} at {check_url}",
+                }
+
+        except Exception as e:
+            return {"exists": False, "message": f"Error checking directory: {str(e)}"}
+
     return dspy.ReAct(
-        RCAAccelerator, tools=[read_errors, search_jira_issues, search_slack_messages]
+        RCAAccelerator,
+        tools=[
+            read_errors,
+            search_jira_issues,
+            search_slack_messages,
+            check_build_log_directory,
+        ],
     )
 
 
@@ -132,14 +192,20 @@ async def call_agent(
     job: rcav2.agent.ansible.Job | None,
     errors: rcav2.models.errors.Report,
     worker: Worker,
+    log_url: str | None = None,
 ) -> Report:
     if not job:
         job = rcav2.agent.ansible.Job(description="", actions=[])
+
+    # Add log URL to job description if available
+    if log_url:
+        job.description += f"\n\nBuild Log URL: {log_url}"
+
     await worker.emit("Calling RCAAccelerator", "progress")
     errors_count = dict()
     for logfile in errors.logfiles:
         errors_count[logfile.source] = len(logfile.errors)
     agent.set_lm(rcav2.model.get_lm("gemini-2.5-pro", max_tokens=1024 * 1024))
-    result = await agent.acall(job=job, errors=errors_count)
+    result = await agent.acall(job=job, errors=errors_count, log_url=log_url)
     await rcav2.model.emit_dspy_usage(result, worker)
     return result.report
