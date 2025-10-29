@@ -21,5 +21,6 @@ class JiraTicket(BaseModel):
 
 
 class Report(BaseModel):
+    summary: str = ""
     possible_root_causes: list[PossibleRootCause] = []
     jira_tickets: list[JiraTicket] = []
