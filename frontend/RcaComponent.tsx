@@ -19,9 +19,16 @@ interface JiraTicket {
   summary: string;
 }
 
+interface LogSource {
+  log_name: string;
+  log_url: string;
+  archive: boolean;
+}
+
 interface Evidence {
   error: string;
-  source: string;
+  source: LogSource;
+  pos: number;
 }
 
 interface PossibleRootCause {
@@ -33,6 +40,7 @@ interface Report {
   summary?: string;
   possible_root_causes?: PossibleRootCause[];
   jira_tickets?: JiraTicket[];
+  report_url?: string;
 }
 
 interface JobInfo {
@@ -49,20 +57,21 @@ function Spinner() {
   );
 }
 
-function Evidence({ error, source }: { error: string; source: string }) {
+function Evidence({ evidence, report_url }: { evidence: Evidence, report_url: string }) {
+  const url = (evidence.source.archive && report_url) ? `${report_url}#lr${evidence.pos}` : evidence.source.log_url;
   return (
     <div>
       <div className="bg-slate-100">
         <a
-          href={source}
+          href={url}
           target="_blank"
           rel="noopener noreferrer"
           className="cursor-pointer hover:underline"
         >
-          {source}
+          {evidence.source.log_name}
         </a>
       </div>
-      <pre className="pl-2 font-mono break-all whitespace-pre-wrap">{error}</pre>
+      <pre className="pl-2 font-mono break-all whitespace-pre-wrap">{evidence.error}</pre>
     </div>
   );
 }
@@ -318,8 +327,8 @@ export function RcaComponent(
                         {rootCause.evidences.map((evidence, index) => (
                           <li key={index} className="pt-1 break-words">
                             <Evidence
-                              error={evidence.error}
-                              source={evidence.source}
+                              evidence={evidence}
+                              log_url={report?.report_url}
                             />
                           </li>
                         ))}

@@ -93,13 +93,15 @@ def keep_context(source: str) -> bool:
 def report_to_prompt(report: rcav2.models.errors.Report) -> str:
     """Convert a report to a LLM prompt
 
-    >>> report_to_prompt(rcav2.models.errors.json_to_report(TEST_REPORT))
-    '\\n## \\n## example.com/zuul/overcloud.log\\noops\\noops'
+    >>> print(report_to_prompt(rcav2.models.errors.json_to_report(TEST_REPORT)))
+    <BLANKLINE>
+    ## zuul/overcloud.log
+    oops
     """
     lines = []
     for logfile in report.logfiles:
-        lines.append(f"\n## {logfile.source}")
-        context = keep_context(logfile.source)
+        lines.append(f"\n## {logfile.source.log_name}")
+        context = keep_context(logfile.source.log_name)
         for error in logfile.errors:
             if context:
                 for line in error.before:
@@ -115,9 +117,7 @@ TEST_REPORT = dict(
     target={"Zuul": {"job_name": "tox", "log_url": "https://logserver/build"}},
     log_reports=[
         dict(
-            source={
-                "RawFile": {"Remote": [12, "\n## example.com/zuul/overcloud.log\noops"]}
-            },
+            source={"RawFile": {"Remote": [12, "example.com/zuul/overcloud.log"]}},
             anomalies=[
                 {"before": [], "anomaly": {"line": "oops", "pos": 42}, "after": []}
             ],

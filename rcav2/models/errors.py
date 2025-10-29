@@ -30,6 +30,7 @@ class Report(BaseModel):
     target: str
     log_url: str | None
     logfiles: list[LogFile]
+    report_url: str | None = None
 
 
 def read_source(source: dict) -> LogSource:
@@ -80,13 +81,12 @@ def read_error(anomaly: dict, source: dict) -> Error:
     )
 
 
-def read_logfile(log_report: dict, logjuicer_url: str | None = None) -> LogFile:
+def read_logfile(log_report: dict) -> LogFile:
     source_json = log_report["source"]
     return LogFile(
         source=read_source(source_json),
         errors=[
-            read_error(anomaly, source_json, logjuicer_url)
-            for anomaly in log_report["anomalies"]
+            read_error(anomaly, source_json) for anomaly in log_report["anomalies"]
         ],
     )
 
@@ -94,8 +94,8 @@ def read_logfile(log_report: dict, logjuicer_url: str | None = None) -> LogFile:
 def json_to_report(report: dict) -> Report:
     return Report(
         target=read_target(report["target"]),
-        logfiles=list(map(read_logfile, report["log_reports"])),
         log_url=read_log_url(report["target"]),
+        logfiles=[read_logfile(log) for log in report["log_reports"]],
     )
 
 

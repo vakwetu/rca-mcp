@@ -85,8 +85,8 @@ async def do_get_remote_report(env: Env, url: str, worker: None | Worker) -> Rep
     # Step3: download report
     curl = f"{SF_URL}/logjuicer/api/report/{report_id}/json"
     report = (await env.httpx.get(curl, auth=env.auth)).raise_for_status().json()
-    json_report = rcav2.models.errors.json_to_report(report, logjuicer_url=report_url)
-    json_report.logjuicer_url = report_url
+    json_report = rcav2.models.errors.json_to_report(report)
+    json_report.report_url = report_url
     return json_report
 
 
