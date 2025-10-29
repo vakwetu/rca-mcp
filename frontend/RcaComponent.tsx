@@ -30,6 +30,7 @@ interface PossibleRootCause {
 }
 
 interface Report {
+  summary?: string;
   possible_root_causes?: PossibleRootCause[];
   jira_tickets?: JiraTicket[];
 }
@@ -261,6 +262,28 @@ export function RcaComponent(
                   </div>
                 )}
               </div>
+              {report.summary && (
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+                  <h3 className="font-semibold mb-2 text-blue-900 dark:text-blue-100">
+                    Summary
+                  </h3>
+                  <div className="prose dark:prose-invert max-w-none">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        pre: ({ node, ...props }) => (
+                          <pre
+                            {...props}
+                            className="whitespace-pre-wrap break-all"
+                          />
+                        ),
+                      }}
+                    >
+                      {report.summary}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              )}
               {report.possible_root_causes && report.possible_root_causes.length > 0 && (
                 <>
                   {report.possible_root_causes.map((rootCause, rootCauseIndex) => (

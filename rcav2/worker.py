@@ -51,6 +51,8 @@ class CLIWorker(Worker):
             if "possible_root_causes" in body:
                 # New format with possible_root_causes
                 print("Report\n~~~~~~\n")
+                if body.get("summary"):
+                    print(f"Summary:\n{body['summary']}\n")
                 for i, root_cause in enumerate(body["possible_root_causes"], 1):
                     print(f"Possible Root Cause {i}:")
                     print(f"{root_cause['cause']}\n")

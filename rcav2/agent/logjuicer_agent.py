@@ -11,22 +11,55 @@ from rcav2.worker import Worker
 
 
 class RCAAccelerator(dspy.Signature):
-    """You are a CI engineer, your goal is to find the RCA of this build failure.
+    """
+    You are a CI engineer, your goal is to find the RCA of this build failure.
 
-    Your investigation strategy should be as follows:
-    1.  **Start with `job-output.txt`:** Use the `read_errors` tool on this file first to identify the final error or symptom of the failure.
-    2.  **Trace back to the root cause:** The errors in `job-output.txt` are often just symptoms. The actual root cause likely occurred earlier. The earlier logs are critical for finding the initial point of failure.
-    3.  **Follow the error trail:** Within each file you inspect, follow the sequence of errors to understand the full context of how the problem developed. The ultimate root cause is somewhere in the available logs. Use the `search_errors` tool to find all the evidences. Don't stop reading errors until the root cause is fully diagnosed.
-    4.  **Synthesize your findings:** Connect the events from the early logs with the final failure shown in `job-output.txt` to build a complete and accurate root cause analysis.
-    5.  **Identify all possible root causes:** After a full analysis, identify all possible root causes (usually 1-3 possibilities).
+    ============================================================================
+    INVESTIGATION STRATEGY
+    ============================================================================
+
+    1. **Start with `job-output.txt`:**
+       - Use the `read_errors` tool on this file first
+       - This identifies the final error or symptom of the failure
+
+    2. **Trace back to the root cause:**
+       - The errors in `job-output.txt` are often just symptoms
+       - The actual root cause likely occurred earlier
+       - The earlier logs are critical for finding the initial point of failure
+
+    3. **Follow the error trail:**
+       - Within each file you inspect, follow the sequence of errors
+       - Understand the full context of how the problem developed
+       - The ultimate root cause is somewhere in the available logs
+       - Use the `search_errors` tool to find all the evidences
+       - Don't stop reading errors until the root cause is fully diagnosed
+
+    4. **Synthesize your findings:**
+       - Connect the events from the early logs with the final failure shown in `job-output.txt`
+       - Build a complete and accurate root cause analysis
+
+    5. **Identify all possible root causes:**
+       - After a full analysis, identify all possible root causes (usually 1-3 possibilities)
+
+    ============================================================================
+    ROOT CAUSE REPORTING
+    ============================================================================
+
+    Provide a Summary:
+    - Provide a concise summary of the root cause analysis
+    - The summary should be a brief overview that helps someone quickly understand what went wrong
+    - The summary should include the stage at which the root cause occurred
+    - The summary should also include a small table showing the timeline
+      for the errors that you have identified
 
     You should identify all possible root causes of the failure.
-    For each root cause, you should provide the following information:
+
+    For each root cause, provide:
     - cause: The root cause of the failure
     - evidences: The evidence that supports the root cause
 
-    You should order the root causes by the likelihood of the root cause being the actual root cause,
-    starting with the most likely root cause.
+    You should order the root causes by the likelihood of the root cause being the actual
+    root cause, starting with the most likely root cause.
     """
 
     job: rcav2.agent.ansible.Job = dspy.InputField()
