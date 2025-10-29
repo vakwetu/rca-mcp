@@ -43,6 +43,7 @@ class Env:
         self.log = logging.getLogger("rcav2")
         self.jira: Jira | None = None
         self.slack: SlackClient | None = None
+        self.extra_description: str | None = None
 
         # Initialize JIRA client if credentials are available
         if JIRA_URL and JIRA_API_KEY and JIRA_RCA_PROJECTS:

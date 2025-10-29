@@ -93,12 +93,15 @@ async def describe_job(
 ) -> Job | None:
     job = await describe_job_base(env, db, job_name, worker)
     # Load additional job description from file if specified
-    additional_description = load_job_description_file()
-    if additional_description:
+    if desc := env.extra_description:
+        additional_description = desc
+    elif desc := load_job_description_file():
+        additional_description = desc
         await worker.emit(
             f"Loaded additional job description from {JOB_DESCRIPTION_FILE}",
             event="progress",
         )
+    if additional_description:
         if job:
             # Append additional description
             job.description += f"\n\nAdditional Context:\n{additional_description}"
