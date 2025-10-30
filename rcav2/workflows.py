@@ -101,6 +101,8 @@ async def describe_job(
             f"Loaded additional job description from {JOB_DESCRIPTION_FILE}",
             event="progress",
         )
+    else:
+        additional_description = None
     if additional_description:
         if job:
             # Append additional description
