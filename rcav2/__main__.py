@@ -20,7 +20,7 @@ from rcav2.worker import CLIWorker
 def usage():
     parser = argparse.ArgumentParser(description="Root Cause Analysis (RCA)")
     parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--workflow")
+    parser.add_argument("--workflow", default="react")
     parser.add_argument("URL", help="The build URL")
     return parser.parse_args()
 
