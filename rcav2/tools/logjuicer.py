@@ -68,8 +68,8 @@ async def do_get_remote_report(env: Env, url: str, worker: None | Worker) -> Rep
     create_resp = (await env.httpx.put(curl, auth=env.auth)).raise_for_status()
     [report_id, status] = create_resp.json()
 
+    report_url = f"{SF_URL}/logjuicer/report/{report_id}"
     if worker:
-        report_url = f"{SF_URL}/logjuicer/report/{report_id}"
         await worker.emit(report_url, event="logjuicer_url")
     # Step2: wait for status, from: https://github.com/logjuicer/logjuicer/blob/ba53c7566797cec44a8064dc905c3f78743045c0/crates/report/src/report_row.rs#L47-L51
     match status:
@@ -85,7 +85,9 @@ async def do_get_remote_report(env: Env, url: str, worker: None | Worker) -> Rep
     # Step3: download report
     curl = f"{SF_URL}/logjuicer/api/report/{report_id}/json"
     report = (await env.httpx.get(curl, auth=env.auth)).raise_for_status().json()
-    return rcav2.models.errors.json_to_report(report)
+    json_report = rcav2.models.errors.json_to_report(report)
+    json_report.report_url = report_url
+    return json_report
 
 
 async def get_remote_report(env: Env, url: str, worker: None | Worker) -> Report:

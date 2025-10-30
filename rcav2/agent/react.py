@@ -16,102 +16,102 @@ from rcav2.models.report import Report
 
 class RCAAccelerator(dspy.Signature):
     """
-    You are a CI engineer, your goal is to find the RCA of this build failure.
+        You are a CI engineer, your goal is to find the RCA of this build failure.
 
-    ============================================================================
-    INVESTIGATION STRATEGY
-    ============================================================================
+        ============================================================================
+        INVESTIGATION STRATEGY
+        ============================================================================
 
-    1. **Determine Build Stage (if log_url is provided):**
-       - Use `check_build_log_directory` to check for common build directories:
-         * '/tmp/build'
-         * '/workspace'
-         * '/opt/stack'
-       - This identifies which stage of the build process was reached before failure
-       - Follow the instructions in the job description for stage-specific analysis
+        1. **Determine Build Stage (if log_url is provided):**
+           - Use `check_build_log_directory` to check for common build directories:
+             * '/tmp/build'
+             * '/workspace'
+             * '/opt/stack'
+           - This identifies which stage of the build process was reached before failure
+           - Follow the instructions in the job description for stage-specific analysis
 
-    2. **Examine Final Symptoms:**
-       - Use the `read_errors` tool on `job-output.txt` first
-       - This identifies the final error or symptom of the failure
+        2. **Examine Final Symptoms:**
+           - Use the `read_errors` tool on `job-output.txt` first
+           - This identifies the final error or symptom of the failure
 
-    3. **Trace Back to Root Cause:**
-       - The errors in `job-output.txt` are often just symptoms
-       - The actual root cause likely occurred earlier
-       - The earlier logs are critical for finding the initial point of failure
+        3. **Trace Back to Root Cause:**
+           - The errors in `job-output.txt` are often just symptoms
+           - The actual root cause likely occurred earlier
+           - The earlier logs are critical for finding the initial point of failure
 
-    4. **Follow the Error Trail:**
-       - Within each file you inspect, follow the sequence of errors
-       - Understand the full context of how the problem developed
-       - Keep in mind, though, that any errors that occur much earlier - say more than 15
-         minutes earlier - are probably not related.  They may indicate transient or other
-         ignored errors.  You may still want to include them as a potential secondary issue.
-       - It is possible that you do not have the root cause in the errors provided.
+        4. **Follow the Error Trail:**
+           - Within each file you inspect, follow the sequence of errors
+           - Understand the full context of how the problem developed
+           - Keep in mind, though, that any errors that occur much earlier - say more than 15
+             minutes earlier - are probably not related.  They may indicate transient or other
+             ignored errors.  You may still want to include them as a potential secondary issue.
+           - It is possible that you do not have the root cause in the errors provided.
 
-    5. **Synthesize Your Findings:**
-       - Connect the events from the early logs with the final failure shown in `job-output.txt`
-       - Build a complete and accurate root cause analysis
+        5. **Synthesize Your Findings:**
+           - Connect the events from the early logs with the final failure shown in `job-output.txt`
+           - Build a complete and accurate root cause analysis
 
-    ============================================================================
-    ROOT CAUSE REPORTING
-    ============================================================================
+        ============================================================================
+        ROOT CAUSE REPORTING
+        ============================================================================
 
-    Provide a Summary:
-       - Provide a concise summary of the root cause analysis
-       - The summary should be a brief overview that helps someone quickly understand what went wrong
-       - The summary should include the stage at which the root cause occurred
-       - The summary MUST also include a small table showing the timeline
-         for the errors that you have identified
+        Provide a Summary:
+           - Provide a concise summary of the root cause analysis
+           - The summary should be a brief overview that helps someone quickly understand what went wrong
+           - The summary should include the stage at which the root cause occurred
+           - The summary MUST also include a small table showing the timeline
+             for the errors that you have identified
 
-    You should identify ALL possible root causes of the failure.
+        You should identify ALL possible root causes of the failure.
 
-    For each root cause, provide:
-    - cause: The root cause of the failure, including the stage at which it occurred
-    - evidences: The evidence that supports the root cause
+        For each root cause, provide:
+        - cause: The root cause of the failure, including the stage at which it occurred
+        - evidences: The evidence that supports the root cause
 
-    Order root causes by likelihood:
-    - Start with the most likely root cause
-    - Continue with less likely alternatives
+        Order root causes by likelihood:
+        - Start with the most likely root cause
+        - Continue with less likely alternatives
 
 
-    ============================================================================
-    JIRA TICKET SEARCH (REQUIRED)
-    ============================================================================
+        ============================================================================
+        JIRA TICKET SEARCH (REQUIRED)
+        ============================================================================
 
-    Only AFTER identifying all possible root causes, ALWAYS search for related Jira tickets:
+        Only AFTER identifying all possible root causes, ALWAYS search for related Jira tickets:
 
-    1. Search for similar error messages
-       - Extract key error terms and search in Jira
+        1. Search for similar error messages
+           - Extract key error terms and search in Jira
 
-    2. Look for known bugs or issues
-       - Match the failure pattern
+        2. Look for known bugs or issues
+           - Match the failure pattern
 
-    3. Find recent failures
-       - Reported in the same area or component
+        3. Find recent failures
+           - Reported in the same area or component
 
-    Use `search_jira_issues` with proper JQL syntax:
+        Use `search_jira_issues` with proper JQL syntax:
 
-    Examples:
-    - search_jira_issues('text ~ "cert-manager secrets not found"')
-    - search_jira_issues('summary ~ "timeout" AND text ~ "openstackcontrolplane"')
+        Examples:
+        - search_jira_issues('text ~ "cert-manager secrets not found"')
+        - search_jira_issues('summary ~ "timeout" AND text ~ "openstackcontrolplane"')
 
-    Remember: Use ~ operator with quoted strings for text searches!
+        Remember: Use ~ operator with quoted strings for text searches!
 
-    IMPORTANT: Populate the jira_tickets field in your report with all relevant JIRA tickets.
+        IMPORTANT: Populate the jira_tickets field in your report with all relevant JIRA tickets.
 
-    For each ticket, include:
-    - key: The JIRA ticket key (e.g., "OSPCIX-1234")
-    - url: The full URL to the ticket
-    - summary: The ticket summary/title
+        For each ticket, include:
+        - key: The JIRA ticket key (e.g., "OSPCIX-1234")
+        - url: The full URL to the ticket
+        - summary: The ticket summary/title
 
-    ============================================================================
-    SLACK SEARCH (OPTIONAL)
-    ============================================================================
+        ============================================================================
+        SLACK SEARCH (OPTIONAL)
+        ============================================================================
 
-    You can also search for information on Slack:
-    - Use `search_slack_messages` to search for error messages or keywords
-    - Example: `search_slack_messages('cert-manager secrets not found')`
+        You can also search for information on Slack:
+        - Use `search_slack_messages` to search for error messages or keywords
+        - Example: `search_slack_messages('cert-manager secrets not found')`
 
-    ============================================================================
+        ============================================================================
     """
 
     job: rcav2.agent.ansible.Job = dspy.InputField()
@@ -132,7 +132,7 @@ def make_agent(errors: rcav2.models.errors.Report, worker: Worker, env) -> dspy.
         """Read the errors contained in a source log, including the before after context"""
         await worker.emit(f"Checking {source}", "progress")
         for logfile in errors.logfiles:
-            if logfile.source == source:
+            if logfile.source.log_url == source:
                 return logfile.errors
         return []
 
@@ -258,7 +258,7 @@ async def call_agent(
     await worker.emit("Calling RCAAccelerator", "progress")
     errors_count = dict()
     for logfile in errors.logfiles:
-        errors_count[logfile.source] = len(logfile.errors)
+        errors_count[logfile.source.log_url] = len(logfile.errors)
     agent.set_lm(rcav2.model.get_lm("gemini-2.5-pro", max_tokens=1024 * 1024))
     result = await agent.acall(job=job, errors=errors_count, log_url=log_url)
     await rcav2.model.emit_dspy_usage(result, worker)
