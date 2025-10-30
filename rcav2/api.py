@@ -37,7 +37,7 @@ class RCAJob(Job):
 
     @property
     def job_key(self) -> str:
-        return f"{self.workflow}-${self.url}"
+        return f"{self.workflow}-{self.url}"
 
     async def run(self, worker: Worker) -> None:
         try:
