@@ -7,10 +7,7 @@ This module defines the system configuration from the process os.environ.
 
 import os
 
-try:
-    SF_DOMAIN = os.environ["SF_DOMAIN"]
-except KeyError:
-    raise ValueError("The SF_DOMAIN environment variable must be set") from None
+SF_DOMAIN = os.environ.get("SF_DOMAIN")
 
 SF_URL = f"https://{SF_DOMAIN}"
 

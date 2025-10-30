@@ -31,6 +31,8 @@ class Env:
     """The RCAv2 application environment"""
 
     def __init__(self, debug, cookie_path: str | None = None):
+        if not SF_DOMAIN:
+            raise ValueError("The SF_DOMAIN environment variable must be set")
         lvl = logging.DEBUG if debug else logging.INFO
         logging.basicConfig(format="%(asctime)s %(levelname)9s %(message)s", level=lvl)
         self.cookie = None
@@ -72,7 +74,7 @@ def make_httpx_client(cookie_path: str | None) -> httpx.AsyncClient:
 
     # Restore cookies
     cookies = httpx.Cookies()
-    if cookie_path:
+    if cookie_path and SF_DOMAIN:
         cookie_file = pathlib.Path(cookie_path)
         try:
             if time.time() - cookie_file.stat().st_mtime > 24 * 3600:
