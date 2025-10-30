@@ -127,9 +127,7 @@ class RCAAccelerator(dspy.Signature):
     report: Report = dspy.OutputField()
 
 
-def make_agent(
-    errors: rcav2.models.errors.Report, worker: Worker, env, log_url: str | None = None
-) -> dspy.ReAct:
+def make_agent(errors: rcav2.models.errors.Report, worker: Worker, env) -> dspy.ReAct:
     async def read_errors(source: str) -> list[rcav2.models.errors.Error]:
         """Read the errors contained in a source log, including the before after context"""
         await worker.emit(f"Checking {source}", "progress")
@@ -198,7 +196,7 @@ def make_agent(
         Returns:
             Dictionary with 'exists' (bool) and 'message' (str) fields
         """
-        if not log_url:
+        if not errors.log_url:
             return {"exists": False, "message": "No log URL provided"}
 
         try:
@@ -209,7 +207,7 @@ def make_agent(
             # Construct the URL to check: log_url/directory_path
             # Remove leading slash from directory_path to avoid double slashes
             clean_path = directory_path.lstrip("/")
-            check_url = f"{log_url.rstrip('/')}/{clean_path}"
+            check_url = f"{errors.log_url.rstrip('/')}/{clean_path}"
 
             # Try to access the directory URL
             response = await env.httpx.get(check_url, timeout=30.0)
@@ -249,13 +247,12 @@ async def call_agent(
     job: rcav2.agent.ansible.Job | None,
     errors: rcav2.models.errors.Report,
     worker: Worker,
-    log_url: str | None = None,
 ) -> Report:
     if not job:
         job = rcav2.agent.ansible.Job(description="", actions=[])
 
     # Add log URL to job description if available
-    if log_url:
+    if log_url := errors.log_url:
         job.description += f"\n\nBuild Log URL: {log_url}"
 
     await worker.emit("Calling RCAAccelerator", "progress")

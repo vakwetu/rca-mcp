@@ -99,13 +99,12 @@ async def call_agent(
     job: rcav2.agent.ansible.Job | None,
     errors: rcav2.models.errors.Report,
     worker: Worker,
-    log_url: str | None = None,
 ) -> list[PossibleRootCause]:
     if not job:
         job = rcav2.agent.ansible.Job(description="", actions=[])
 
     # Add log URL to job description if available
-    if log_url:
+    if log_url := errors.log_url:
         job.description += f"\n\nBuild Log URL: {log_url}"
 
     await worker.emit("Calling RCAAccelerator", "progress")

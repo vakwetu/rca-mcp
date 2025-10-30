@@ -105,36 +105,6 @@ async def get_job_playbooks(info: ZuulInfo, job_name: str):
     return plays
 
 
-async def get_build_log_url(env: Env, build_url: str) -> str | None:
-    """Get the log URL from a Zuul build URL.
-
-    Converts a build URL like:
-    https://zuul-server.example.com/zuul/t/components-integration/build/693457ae7bde4121bf2c9dd4affbf245
-
-    To an API URL like:
-    https://zuul-server.example.com/zuul/api/tenant/components-integration/build/693457ae7bde4121bf2c9dd4affbf245
-
-    And returns the log_url field from the JSON response.
-    """
-    # Replace /t/ with /api/tenant/ in the URL
-    api_url = build_url.replace("/t/", "/api/tenant/")
-
-    try:
-        # Ensure we are authenticated
-        await rcav2.auth.ensure_cookie(env)
-
-        # Fetch the build info
-        response = await env.httpx.get(api_url, auth=env.auth)
-        response.raise_for_status()
-        build_info = response.json()
-
-        # Extract the log_url field
-        return build_info.get("log_url")
-    except Exception as e:
-        print(f"Failed to get log URL from {build_url}: {e}")
-        return None
-
-
 async def ensure_zuul_info(env: Env) -> ZuulInfo:
     now = time.time()
     if not env.zuul_info or now - env.zuul_info_age > 24 * 3600:

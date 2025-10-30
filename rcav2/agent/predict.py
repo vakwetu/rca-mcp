@@ -70,13 +70,12 @@ async def call_agent(
     job: rcav2.agent.ansible.Job | None,
     errors: rcav2.models.errors.Report,
     worker: Worker,
-    log_url: str | None = None,
 ) -> list[PossibleRootCause]:
     if not job:
         job = rcav2.agent.ansible.Job(description="", actions=[])
 
     # Add log URL to job description if available
-    if log_url:
+    if log_url := errors.log_url:
         job.description += f"\n\nBuild Log URL: {log_url}"
 
     await worker.emit("Calling RCAAccelerator", "progress")
@@ -113,7 +112,7 @@ def report_to_prompt(report: rcav2.models.errors.Report) -> str:
 
 
 TEST_REPORT = dict(
-    target={"Zuul": {"job_name": "tox"}},
+    target={"Zuul": {"job_name": "tox", "log_url": "https://logserver/build"}},
     log_reports=[
         dict(
             source={"RawFile": {"Remote": [12, "example.com/zuul/overcloud.log"]}},

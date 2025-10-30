@@ -22,6 +22,7 @@ class LogFile(BaseModel):
 
 class Report(BaseModel):
     target: str
+    log_url: str | None
     logfiles: list[LogFile]
 
 
@@ -53,6 +54,14 @@ def read_target(target) -> str:
             return f"Unknown target: {target}"
 
 
+def read_log_url(target) -> str | None:
+    match target:
+        case {"Zuul": build}:
+            return build["log_url"]
+        case _:
+            return None
+
+
 def read_error(anomaly) -> Error:
     return Error(
         before=anomaly["before"],
@@ -73,6 +82,7 @@ def json_to_report(report) -> Report:
     return Report(
         target=read_target(report["target"]),
         logfiles=list(map(read_logfile, report["log_reports"])),
+        log_url=read_log_url(report["target"]),
     )
 
 

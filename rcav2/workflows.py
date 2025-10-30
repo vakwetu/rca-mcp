@@ -124,15 +124,9 @@ async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker) -> 
         if job:
             await worker.emit(job.model_dump(), event="job")
 
-        # Get log URL for RCA analysis
-        await worker.emit("Getting build log URL...", event="progress")
-        log_url = await rcav2.tools.zuul.get_build_log_url(env, url)
-        if log_url:
-            await worker.emit(f"Log URL: {log_url}", event="progress")
-
         rca_agent = rcav2.agent.predict.make_agent()
         possible_root_causes = await rcav2.agent.predict.call_agent(
-            rca_agent, job, errors_report, worker, log_url
+            rca_agent, job, errors_report, worker
         )
 
         report = Report(possible_root_causes=possible_root_causes, jira_tickets=[])
@@ -152,16 +146,10 @@ async def rca_multi(env: Env, db: Engine | None, url: str, worker: Worker) -> No
         if job:
             await worker.emit(job.model_dump(), event="job")
 
-        # Get log URL for RCA analysis
-        await worker.emit("Getting build log URL...", event="progress")
-        log_url = await rcav2.tools.zuul.get_build_log_url(env, url)
-        if log_url:
-            await worker.emit(f"Log URL: {log_url}", event="progress")
-
         # Step2: Analyzing build errors
         rca_agent = rcav2.agent.logjuicer_agent.make_agent(errors_report, worker)
         possible_root_causes = await rcav2.agent.logjuicer_agent.call_agent(
-            rca_agent, job, errors_report, worker, log_url
+            rca_agent, job, errors_report, worker
         )
 
         # Step3: Gathering additional context
@@ -191,14 +179,8 @@ async def rca_react(env: Env, db: Engine | None, url: str, worker: Worker) -> No
         if job:
             await worker.emit(job.model_dump(), event="job")
 
-        # Get log URL for RCA analysis
-        await worker.emit("Getting build log URL...", event="progress")
-        log_url = await rcav2.tools.zuul.get_build_log_url(env, url)
-        if log_url:
-            await worker.emit(f"Log URL: {log_url}", event="progress")
-
-        rca_agent = rcav2.agent.react.make_agent(errors_report, worker, env, log_url)
+        rca_agent = rcav2.agent.react.make_agent(errors_report, worker, env)
         report = await rcav2.agent.react.call_agent(
-            rca_agent, job, errors_report, worker, log_url
+            rca_agent, job, errors_report, worker
         )
         await worker.emit(report.model_dump(), event="report")
