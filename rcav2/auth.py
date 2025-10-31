@@ -43,4 +43,5 @@ async def ensure_cookie(env: Env):
     if not env.cookie or now - env.cookie_age > (23.8 * 3600):
         ensure_kerberos()
         env.cookie = await get_oidc_cookie(env)
-        env.cookie_age = now
+        if env.cookie:
+            env.cookie_age = now
