@@ -58,6 +58,7 @@ class RCAAccelerator(dspy.Signature):
     job: rcav2.agent.ansible.Job = dspy.InputField()
 
     errors: str = dspy.InputField()
+    summary: str = dspy.OutputField()
     possible_root_causes: list[PossibleRootCause] = dspy.OutputField()
 
 
@@ -70,7 +71,7 @@ async def call_agent(
     job: rcav2.agent.ansible.Job | None,
     errors: rcav2.models.errors.Report,
     worker: Worker,
-) -> list[PossibleRootCause]:
+) -> tuple[list[PossibleRootCause], str]:
     if not job:
         job = rcav2.agent.ansible.Job(description="", actions=[])
 
@@ -82,12 +83,7 @@ async def call_agent(
     errors_report = report_to_prompt(errors)
     result = await agent.acall(job=job, errors=errors_report)
     await rcav2.model.emit_dspy_usage(result, worker)
-    return result.possible_root_causes
-
-
-def keep_context(source: str) -> bool:
-    """Decide if the before/after lines should be kept"""
-    return source == "job-output" or "ansible" in source
+    return (result.possible_root_causes, result.summary)
 
 
 def report_to_prompt(report: rcav2.models.errors.Report) -> str:
@@ -99,15 +95,12 @@ def report_to_prompt(report: rcav2.models.errors.Report) -> str:
     lines = []
     for logfile in report.logfiles:
         lines.append(f"\n## {logfile.source}")
-        context = keep_context(logfile.source)
         for error in logfile.errors:
-            if context:
-                for line in error.before:
-                    lines.append(line)
+            for line in error.before:
+                lines.append(line)
             lines.append(error.line)
-            if context:
-                for line in error.after:
-                    lines.append(line)
+            for line in error.after:
+                lines.append(line)
     return "\n".join(lines)
 
 

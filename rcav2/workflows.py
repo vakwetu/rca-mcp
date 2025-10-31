@@ -127,11 +127,13 @@ async def rca_predict(env: Env, db: Engine | None, url: str, worker: Worker) -> 
             await worker.emit(job.model_dump(), event="job")
 
         rca_agent = rcav2.agent.predict.make_agent()
-        possible_root_causes = await rcav2.agent.predict.call_agent(
+        (possible_root_causes, summary) = await rcav2.agent.predict.call_agent(
             rca_agent, job, errors_report, worker
         )
 
-        report = Report(possible_root_causes=possible_root_causes, jira_tickets=[])
+        report = Report(
+            summary=summary, possible_root_causes=possible_root_causes, jira_tickets=[]
+        )
         await worker.emit(report.model_dump(), event="report")
 
 
