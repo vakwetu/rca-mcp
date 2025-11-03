@@ -12,12 +12,12 @@ function Spinner() {
   );
 }
 
-function Evidence({ error, source, build_url, logjuicer_url, source_map }) {
+function Evidence({ error, source, log_url, logjuicer_url, source_map }) {
   return (
     <div>
       <div className="bg-slate-100">
         <a
-          href={build_url + "/" + source}
+          href={log_url + "/" + source}
           target="_blank"
           rel="noopener noreferrer"
           className="cursor-pointer hover:underline"
