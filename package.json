@@ -4,18 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "style": "dist/style.css",
-  "main": "./dist/rca-component.js",
-  "module": "./dist/rca-component.mjs",
-  "exports": {
-    ".": {
-      "import": "./dist/rca-component.mjs",
-      "require": "./dist/rca-component.umd.js"
-    },
-    "./style.css": "./dist/style.css"
-  },
-  "files": [
-    "dist"
-  ],
+  "exports": "./frontend/RcaComponent.jsx",
+  "files": ["frontend/"],
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "env VITE_STANDALONE=1 vite build",
