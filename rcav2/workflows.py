@@ -85,7 +85,12 @@ async def describe_job_base(
     if db:
         if job := await job_from_db(db, job_name, worker):
             return job
-    return await job_from_model(env, job_name, worker)
+    job = await job_from_model(env, job_name, worker)
+    if job and db:
+        rcav2.database.set_job(
+            db, job_name, json.dumps(list([job.model_dump(), "job"]))
+        )
+    return job
 
 
 async def describe_job(
