@@ -84,7 +84,7 @@ export function RcaComponent(
       setIsLoading(false);
       switch (event) {
         case "progress":
-          setStatus((prevStatus) => [...prevStatus, body]);
+          setStatus((prevStatus) => [body, ...prevStatus]);
           break;
         case "report":
           setReport(body);
