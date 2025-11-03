@@ -151,23 +151,22 @@ async def rca_multi(env: Env, db: Engine | None, url: str, worker: Worker) -> No
             await worker.emit(job.model_dump(), event="job")
 
         # Step2: Analyzing build errors
-        rca_agent = rcav2.agent.logjuicer_agent.make_agent(errors_report, worker)
-        possible_root_causes = await rcav2.agent.logjuicer_agent.call_agent(
+        rca_agent = rcav2.agent.predict.make_agent()
+        (root_causes, summary) = await rcav2.agent.predict.call_agent(
             rca_agent, job, errors_report, worker
         )
 
         # Step3: Gathering additional context
         # Get the primary root cause description and evidences for Jira search
-        primary_cause = possible_root_causes[0].cause if possible_root_causes else ""
-        primary_evidences = (
-            possible_root_causes[0].evidences if possible_root_causes else []
-        )
-
         jira_agent = rcav2.agent.jira_agent.make_agent(worker, env)
         tickets = await rcav2.agent.jira_agent.call_agent(
-            jira_agent, primary_cause, primary_evidences, worker
+            jira_agent, summary, root_causes, worker
         )
-        report = Report(possible_root_causes=possible_root_causes, jira_tickets=tickets)
+        report = Report(
+            summary=summary,
+            possible_root_causes=root_causes,
+            jira_tickets=tickets,
+        )
         await worker.emit(report.model_dump(), event="report")
 
 

@@ -79,7 +79,7 @@ async def call_agent(
     if log_url := errors.log_url:
         job.description += f"\n\nBuild Log URL: {log_url}"
 
-    await worker.emit("Calling RCAAccelerator", "progress")
+    await worker.emit("Calling RCAPredict", "progress")
     errors_report = report_to_prompt(errors)
     result = await agent.acall(job=job, errors=errors_report)
     await rcav2.model.emit_dspy_usage(result, worker)

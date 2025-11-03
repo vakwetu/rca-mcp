@@ -5,7 +5,7 @@ import dspy  # type: ignore[import-untyped]
 
 from rcav2.worker import Worker
 from rcav2.env import Env
-from rcav2.models.report import Evidence, JiraTicket
+from rcav2.models.report import JiraTicket, PossibleRootCause
 import rcav2.model
 
 
@@ -25,8 +25,8 @@ class JiraAgent(dspy.Signature):
     Use the results from search_jira_issues to populate this field.
     """
 
-    root_cause: str = dspy.InputField()
-    evidences: list[Evidence] = dspy.InputField()
+    summary: str = dspy.InputField()
+    possible_root_causes: list[PossibleRootCause] = dspy.InputField()
     tickets: list[JiraTicket] = dspy.OutputField()
 
 
@@ -63,11 +63,13 @@ def make_agent(worker: Worker, env: Env) -> dspy.ReAct:
 
 async def call_agent(
     agent: dspy.ReAct,
-    root_cause: str,
-    evidences: list[Evidence],
+    summary: str,
+    possible_root_causes: list[PossibleRootCause],
     worker: Worker,
 ) -> list[JiraTicket]:
     await worker.emit("Calling JiraAgent", "progress")
-    result = await agent.acall(root_cause=root_cause, evidences=evidences)
+    result = await agent.acall(
+        summary=summary, possible_root_causes=possible_root_causes
+    )
     await rcav2.model.emit_dspy_usage(result, worker)
     return result.tickets
