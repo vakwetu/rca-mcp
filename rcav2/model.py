@@ -30,7 +30,7 @@ class TraceManager:
                 "build_id": build_id,
                 "workflow_type": workflow,
             }
-            tags = ["rca-mcp", workflow]
+            tags = [OPIK_PROJECT_NAME, workflow]
             self.manager = opik.start_as_current_trace(
                 trace_name, metadata=metadata, tags=tags, project_name=OPIK_PROJECT_NAME
             )
@@ -84,8 +84,7 @@ def init_dspy() -> None:
 
     # Configure Opik - use local deployment by default
     try:
-        print("Configuring Opik for local deployment")
-        opik.configure(use_local=True)
+        print("Configuring Opik")
 
         opik_callback = OpikCallback(
             project_name=OPIK_PROJECT_NAME,
