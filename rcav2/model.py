@@ -12,7 +12,7 @@ from dspy.utils.callback import BaseCallback  # type: ignore[import-untyped]
 import opik
 from opik.integrations.dspy.callback import OpikCallback
 
-from rcav2.config import LLM_TEMPERATURE, OPIK_PROJECT_NAME
+from rcav2.config import LLM_TEMPERATURE, OPIK_PROJECT_NAME, OPIK_TAGS
 
 
 class TraceManager:
@@ -30,7 +30,7 @@ class TraceManager:
                 "build_id": build_id,
                 "workflow_type": workflow,
             }
-            tags = [OPIK_PROJECT_NAME, workflow]
+            tags = [OPIK_PROJECT_NAME, workflow] + OPIK_TAGS
             self.manager = opik.start_as_current_trace(
                 trace_name, metadata=metadata, tags=tags, project_name=OPIK_PROJECT_NAME
             )

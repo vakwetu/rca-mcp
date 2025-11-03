@@ -103,6 +103,25 @@ export OPIK_DISABLED=true
 
 If you don't set this variable, the application will automatically fall back to running without Opik integration if the Opik server is unavailable or if there are configuration issues.
 
+#### Additional Opik Tags
+
+You can add additional tags to Opik traces using the `OPIK_TAGS` environment variable. Tags are useful for filtering and organizing traces in Opik.
+
+```bash
+# Comma-separated tags (recommended)
+export OPIK_TAGS="production,experiment,test-run"
+
+# Space-separated tags
+export OPIK_TAGS="production experiment test-run"
+
+# Tags are added to the default tags (project name and workflow type)
+```
+
+Tags are parsed automatically:
+- If commas are present, tags are split by comma
+- If no commas are present, tags are split by whitespace
+- Empty tags are automatically filtered out
+
 ## Usage
 
 To install the project dependencies, run the following command in the root directory:
