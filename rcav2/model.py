@@ -12,7 +12,7 @@ from dspy.utils.callback import BaseCallback  # type: ignore[import-untyped]
 import opik
 from opik.integrations.dspy.callback import OpikCallback
 
-from rcav2.config import OPIK_PROJECT_NAME
+from rcav2.config import LLM_TEMPERATURE, OPIK_PROJECT_NAME
 
 
 class TraceManager:
@@ -49,7 +49,7 @@ class TraceManager:
 def get_lm(name: str, max_tokens: int) -> dspy.LM:
     return dspy.LM(
         f"gemini/{name}",
-        temperature=0.5,
+        temperature=LLM_TEMPERATURE,
         max_tokens=max_tokens,
         api_key=os.environ["LLM_GEMINI_KEY"],
     )

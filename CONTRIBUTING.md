@@ -19,6 +19,16 @@ The project requires a valid kerberos ticket to access the build logs from SF_DO
 
 This project requires access to Gemini.
 
+### LLM Configuration
+
+The language model configuration can be controlled via environment variables:
+
+- **LLM_TEMPERATURE**: Controls the randomness/creativity of the model responses. Defaults to `0.5`.
+  - Lower values (0.0-0.3): More deterministic, focused responses
+  - Medium values (0.5-0.7): Balanced creativity and accuracy
+  - Higher values (0.8-2.0): More creative, diverse responses
+  - Example: `export LLM_TEMPERATURE=0.3` for more consistent results
+
 ### Opik Integration
 
 This project includes integration with [Opik](https://www.comet.com/docs/opik/) for tracing and observability of LLM interactions. Opik helps track and analyze the prompts and responses sent to language models during RCA analysis.
