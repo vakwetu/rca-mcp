@@ -33,6 +33,32 @@ OPIK_PROJECT_NAME = os.environ.get("OPIK_PROJECT_NAME", "rca-api")
 OPIK_URL_OVERRIDE = os.environ.get("OPIK_URL_OVERRIDE")
 
 
+def _get_opik_tags() -> list[str]:
+    """Get additional Opik tags from environment variable, defaulting to empty list.
+
+    Supports both comma-separated and space-separated tags:
+    - Comma-separated: "tag1,tag2,tag3" or "tag1, tag2, tag3"
+    - Space-separated: "tag1 tag2 tag3"
+    - Mixed: "tag1, tag2 tag3" (comma takes precedence)
+    """
+    tags_str = os.environ.get("OPIK_TAGS", "")
+    if not tags_str:
+        return []
+    # Support both comma-separated and space-separated tags
+    # If comma is present, split by comma; otherwise split by space
+    if "," in tags_str:
+        # Comma-separated: split by comma and strip each tag
+        tags = [tag.strip() for tag in tags_str.split(",")]
+    else:
+        # Space-separated: split by whitespace
+        tags = tags_str.split()
+    # Filter out empty strings
+    return [tag for tag in tags if tag]
+
+
+OPIK_TAGS = _get_opik_tags()
+
+
 # LLM configuration
 def _get_temperature() -> float:
     """Get LLM temperature from environment variable, defaulting to 0.5."""
