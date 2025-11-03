@@ -31,3 +31,25 @@ JOB_DESCRIPTION_FILE = os.environ.get("JOB_DESCRIPTION_FILE")
 # Opik configuration
 OPIK_PROJECT_NAME = os.environ.get("OPIK_PROJECT_NAME", "rca-api")
 OPIK_URL_OVERRIDE = os.environ.get("OPIK_URL_OVERRIDE")
+
+
+# LLM configuration
+def _get_temperature() -> float:
+    """Get LLM temperature from environment variable, defaulting to 0.5."""
+    temp_str = os.environ.get("LLM_TEMPERATURE", "0.5")
+    try:
+        temperature = float(temp_str)
+        if temperature < 0.0:
+            print(
+                f"Warning: LLM_TEMPERATURE={temperature} is negative. Using default 0.5."
+            )
+            return 0.5
+        return temperature
+    except ValueError:
+        print(
+            f"Warning: LLM_TEMPERATURE={temp_str} is not a valid float. Using default 0.5."
+        )
+        return 0.5
+
+
+LLM_TEMPERATURE = _get_temperature()
