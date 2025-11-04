@@ -90,7 +90,7 @@ To use Opik Cloud or a custom Opik deployment, set the following environment var
 
 ```bash
 export OPIK_API_KEY=your-opik-api-key
-export OPIK_PROJECT_NAME=your-project-name  # Optional, defaults to "rca-mcp"
+export OPIK_PROJECT_NAME=your-project-name  # Optional, defaults to "rca-api"
 ```
 
 #### Disabling Opik Integration
@@ -171,4 +171,9 @@ make frontend-serve
 To validate your changes, run the continuous integration script:
 ```ShellSession
 $ make ci
+```
+
+## Clear RCAv2 app caches (~/.cache/rca & .db.sqlite3)
+```bash
+make clear-cache
 ```

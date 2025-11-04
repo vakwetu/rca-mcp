@@ -1,6 +1,9 @@
 green := \033[36m
 white := \033[0m
 
+cache := $(HOME)/.cache/rca
+db := .db.sqlite3
+
 executables = uv npm
 T := $(foreach exec,$(executables),\
         $(if $(shell which $(exec)),WARNING,$(error "No $(exec) in PATH")))
@@ -27,8 +30,8 @@ release: ## Create a release version of the app
 .PHONY: backend-serve
 backend-serve: ## Serve the backend API server
 	@uv run fastapi dev --host 0.0.0.0 --port 8080 ./rcav2/standalone.py
-.PHONY: frontend-install
 
+.PHONY: frontend-install
 frontend-install:
 	npm install
 
@@ -39,3 +42,14 @@ frontend-serve: frontend-install ## Start the frontend dev server
 .PHONY: frontend-build
 frontend-build: ## Build a static version to be served by the api
 	npm run build
+
+.PHONY: clear-cache
+clear-cache: ## Clear RCAv2 app cache and db.
+	@if [ -d "$(cache)" ]; then \
+		echo "Cache directory $(cache) exists. Deleting..."; \
+		rm -rf "$(cache)"; else \
+		echo "Cache directory $(cache) does not exist."; fi
+	@if [ -f "$(db)" ]; then \
+		echo "DB file $(db) exists. Deleting..."; \
+		rm "$(db)"; else \
+		echo "DB file $(db) does not exist."; fi
