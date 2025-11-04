@@ -16,6 +16,7 @@ import rcav2.tools.logjuicer
 from rcav2.env import Env
 import rcav2.model
 import rcav2.database
+from rcav2.database import Engine
 import rcav2.auth
 import rcav2.tools.zuul
 import rcav2.workflows
@@ -100,7 +101,9 @@ async def job_get(request: Request, name: str):
 
 async def job_watch(request: Request, name: str):
     """Watch a pending job."""
-    return StreamingResponse(do_watch(request, name), media_type="text/event-stream")
+    return StreamingResponse(
+        do_watch(get_pool(request), name), media_type="text/event-stream"
+    )
 
 
 @asynccontextmanager
@@ -121,21 +124,26 @@ def get_pool(request: Request) -> Pool:
     return request.app.state.worker_pool
 
 
-async def get(request: Request, build: str, workflow: str = "react"):
+async def get_impl(env: Env, pool: Pool, db: Engine, build: str, workflow: str):
     """Get or submit the build."""
-    pool = get_pool(request)
     if pool.pending.get(f"{workflow}-{build}"):
         return dict(status="PENDING")
-    db = request.app.state.db
     if events := rcav2.database.get(db, workflow, build):
         return json.loads(events)
-    await pool.submit(RCAJob(request.app.state.env, db, workflow, build))
+    await pool.submit(RCAJob(env, db, workflow, build))
     return dict(status="PENDING")
 
 
-async def do_watch(request, key):
+async def get(request: Request, build: str, workflow: str = "react"):
+    """Get or submit the build."""
+    return await get_impl(
+        request.app.state.env, get_pool(request), request.app.state.db, build, workflow
+    )
+
+
+async def do_watch(pool: Pool, key: str):
     """The watch handler, to follow the progress of a job."""
-    watcher = await get_pool(request).watch(key)
+    watcher = await pool.watch(key)
     if not watcher:
         # The report is now completed, redirect the client to the static page
         yield f"data: {json.dumps(['redirect', True])}\n\n"
@@ -149,7 +157,7 @@ async def do_watch(request, key):
 
 async def watch(request: Request, build: str, workflow: str = "react"):
     """Watch a pending build."""
-    resp = do_watch(request, f"{workflow}-{build}")
+    resp = do_watch(get_pool(request), f"{workflow}-{build}")
     return StreamingResponse(resp, media_type="text/event-stream")
 
 
