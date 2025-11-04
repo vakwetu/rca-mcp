@@ -73,7 +73,8 @@ class AgentLoggingCallback(BaseCallback):
 def init_dspy() -> None:
     dspy.settings.configure(track_usage=True)
 
-    dspy.configure_cache(enable_disk_cache=False, enable_memory_cache=True)
+    if not os.environ.get("DSPY_CACHE"):
+        dspy.configure_cache(enable_disk_cache=False, enable_memory_cache=True)
 
     # Check if Opik is explicitly disabled
     if os.environ.get("OPIK_DISABLED", "false").lower() == "true":
