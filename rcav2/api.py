@@ -16,7 +16,6 @@ import rcav2.tools.logjuicer
 from rcav2.env import Env
 import rcav2.model
 import rcav2.database
-from rcav2.database import Engine
 import rcav2.auth
 import rcav2.tools.zuul
 import rcav2.workflows
@@ -89,56 +88,54 @@ class ZuulJob(Job):
 
 async def job_get(request: Request, name: str):
     """Describe a job"""
-    pool = get_pool(request)
-    if pool.pending.get(name):
+    state = request.app.state.rca
+    if state.pool.pending.get(name):
         return dict(status="PENDING")
-    db = request.app.state.db
-    if events := rcav2.database.get_job(db, name):
+    if events := rcav2.database.get_job(state.db, name):
         return json.loads(events)
-    await pool.submit(ZuulJob(request.app.state.env, db, name))
+    await state.pool.submit(ZuulJob(state.env, state.db, name))
     return dict(status="PENDING")
 
 
 async def job_watch(request: Request, name: str):
     """Watch a pending job."""
     return StreamingResponse(
-        do_watch(get_pool(request), name), media_type="text/event-stream"
+        do_watch(request.app.state.rca.pool, name), media_type="text/event-stream"
     )
+
+
+class RcaState:
+    def __init__(self, max_worker, debug, db_file):
+        self.env = Env(debug=True, cookie_path=None)
+        self.pool = Pool(max_worker)
+        self.db = rcav2.database.create(db_file)
+        rcav2.model.init_dspy()
+
+    async def get_report(self, build: str, workflow: str) -> dict:
+        if self.pool.pending.get(f"{workflow}-{build}"):
+            return dict(status="PENDING")
+        if events := rcav2.database.get(self.db, workflow, build):
+            return json.loads(events)
+        await self.pool.submit(RCAJob(self.env, self.db, workflow, build))
+        return dict(status="PENDING")
+
+    async def stop(self):
+        await self.pool.stop()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Setup the fastapi app.state"""
     # setup
-    app.state.env = Env(debug=True, cookie_path=None)
-    app.state.worker_pool = Pool(2)
-    app.state.db = rcav2.database.create(DATABASE_FILE)
-    rcav2.model.init_dspy()
+    app.state.rca = RcaState(2, True, DATABASE_FILE)
     yield
     # teardown
-    await app.state.worker_pool.stop()
-
-
-def get_pool(request: Request) -> Pool:
-    """Return the worker pool."""
-    return request.app.state.worker_pool
-
-
-async def get_impl(env: Env, pool: Pool, db: Engine, build: str, workflow: str):
-    """Get or submit the build."""
-    if pool.pending.get(f"{workflow}-{build}"):
-        return dict(status="PENDING")
-    if events := rcav2.database.get(db, workflow, build):
-        return json.loads(events)
-    await pool.submit(RCAJob(env, db, workflow, build))
-    return dict(status="PENDING")
+    await app.state.rca.stop()
 
 
 async def get(request: Request, build: str, workflow: str = "react"):
     """Get or submit the build."""
-    return await get_impl(
-        request.app.state.env, get_pool(request), request.app.state.db, build, workflow
-    )
+    return await request.app.state.rca.get_report(build, workflow)
 
 
 async def do_watch(pool: Pool, key: str):
@@ -157,7 +154,7 @@ async def do_watch(pool: Pool, key: str):
 
 async def watch(request: Request, build: str, workflow: str = "react"):
     """Watch a pending build."""
-    resp = do_watch(get_pool(request), f"{workflow}-{build}")
+    resp = do_watch(request.app.state.rca.pool, f"{workflow}-{build}")
     return StreamingResponse(resp, media_type="text/event-stream")
 
 
