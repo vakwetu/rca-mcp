@@ -72,6 +72,9 @@ class AgentLoggingCallback(BaseCallback):
 
 
 def init_dspy() -> None:
+    if not os.environ.get("LLM_GEMINI_KEY"):
+        print("DSPY is disabled because LLM_GEMINI_KEY is not set")
+        return
     dspy.settings.configure(track_usage=True)
 
     if not os.environ.get("DSPY_CACHE"):
