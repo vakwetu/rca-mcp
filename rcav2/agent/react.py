@@ -22,8 +22,13 @@ class RCAAccelerator(dspy.Signature):
     INVESTIGATION STRATEGY
     ============================================================================
 
-    1. **Determine Build Stage (if log_url is provided):**
+    1. **Determine Build Stage (REQUIRED if log_url is provided):**
        - This identifies which stage of the build process was reached before failure
+       - You MUST use the `check_build_log_directory` tool to determine the stage
+       - Check for `logs/controller-0` → If absent, failure was in OpenShift deployment
+       - Check for `logs/controller-0/ci-framework-data/tests/` → If present, failure was in tests
+       - Otherwise, failure was in OpenStack deployment
+       - Use this information to prioritize your error analysis
        - Follow the instructions in the job description for stage-specific analysis
 
     2. **Examine Final Symptoms:**
@@ -45,6 +50,77 @@ class RCAAccelerator(dspy.Signature):
        - Build a complete and accurate root cause analysis
 
     ============================================================================
+    TEMPORAL CAUSAL ANALYSIS (CRITICAL)
+    ============================================================================
+
+    To identify root causes, you MUST perform temporal analysis with constraints:
+
+    1. **Define Temporal Window:**
+       - The final symptom (test failure, deployment error) has a timestamp
+       - ONLY consider errors within 30 minutes BEFORE the final symptom
+       - Errors hours earlier are likely UNRELATED transient issues
+       - Exception: If a service NEVER started, look back to deployment start
+
+    2. **Construct Timeline (Recent Errors Only):**
+       - List errors in chronological order within the 30-minute window
+       - Include timestamp deltas from final failure
+       - Example: "Error at T-25min, Error at T-10min, Failure at T-0min"
+
+    3. **Apply Temporal Causality:**
+       - Root cause should be within 30 minutes of symptom
+       - Typical causal chains are minutes, not hours
+       - Rule: If error A is >1 hour before error B, they are likely unrelated
+         UNLESS there is continuous evidence of the issue throughout
+
+    4. **Identify the Causal Chain:**
+       - Start from errors close to the failure time
+       - Trace backward only if evidence shows continuous problem
+       - Document: "Error A (T-20min) → caused → Error B (T-5min) → caused → Failure"
+       - DO NOT create chains spanning multiple hours without evidence
+
+    5. **Temporal Validation:**
+       - ✅ VALID: Error 10 minutes before failure, clear causal link
+       - ⚠️ QUESTIONABLE: Error 1 hour before, may be unrelated
+       - ❌ INVALID: Error 6+ hours before, almost certainly unrelated
+
+    Example:
+    - ❌ WRONG: "OVN error at 19:15 caused test timeout at 04:38"
+      (9 hours apart - likely unrelated)
+    - ✅ CORRECT: "OVN errors began at 04:15, continuous throughout,
+      tests failed at 04:38" (23 minutes of consistent errors)
+    - ✅ CORRECT: "Database unreachable at 04:30, tests timed out at 04:38"
+      (8 minutes apart - plausible causal link)
+
+    ============================================================================
+    EVIDENCE PRIORITIZATION
+    ============================================================================
+
+    When multiple potential root causes exist, prioritize using this hierarchy:
+
+    **Priority 1: Infrastructure Failures** (Most likely root causes)
+    - Platform instability (OpenShift/Kubernetes control plane)
+    - Core service failures (etcd, API server)
+    - Network infrastructure (OVN/OVS, CNI)
+
+    **Priority 2: Service Layer Failures**
+    - Database/message queue connectivity
+    - Storage service failures
+    - Load balancer issues
+
+    **Priority 3: Application Layer Failures**
+    - API timeouts
+    - Service-specific errors
+    - Configuration errors
+
+    **Priority 4: Test Failures** (Usually symptoms, not root causes)
+    - Test timeouts
+    - Test assertion failures
+    - UI unresponsiveness
+
+    Rule: If you find evidence at Priority 1, investigate that FIRST before
+    concluding a Priority 3 or 4 issue is the root cause.
+
+    ============================================================================
     ROOT CAUSE REPORTING
     ============================================================================
 
@@ -56,7 +132,20 @@ class RCAAccelerator(dspy.Signature):
          in the log files (including those unrelated to the root cause).  Make sure
          the table is well formatted and easy to read.
 
-    You should identify ALL possible root causes of the failure.
+    You MUST identify at least 2-3 possible root causes of the failure, ranked by likelihood.
+
+    **REQUIRED: Provide Alternative Root Causes:**
+
+    You MUST identify at least 2-3 possible root causes, ranked by likelihood:
+
+    - **Primary Root Cause**: Your highest confidence hypothesis
+    - **Secondary Root Cause**: An alternative explanation if primary is wrong
+    - **Tertiary Root Cause**: Another plausible explanation (if applicable)
+
+    Why this is critical:
+    - Your primary hypothesis may be incorrect
+    - Alternative causes give users fallback options
+    - Different levels in a cascading failure may all be "root" from different perspectives
 
     For each root cause, provide:
     - cause: The root cause of the failure, including the stage at which it occurred
@@ -65,6 +154,27 @@ class RCAAccelerator(dspy.Signature):
     Order root causes by likelihood:
     - Start with the most likely root cause
     - Continue with less likely alternatives
+    - ALWAYS provide at least 2 root causes, even if one is much more likely
+
+    **Acknowledge Missing Root Cause:**
+
+    If you cannot find a clear root cause in the logs, you MUST state in your summary:
+
+    "IMPORTANT: The actual root cause may not be present in the available logs.
+    Possible external factors:
+    - Infrastructure issues (network, storage, hardware)
+    - External service dependencies
+    - Resource exhaustion (memory, disk, network)
+    - Timing/race conditions that don't leave clear log traces
+
+    Recommendation: Investigate system-level metrics, external dependencies,
+    and infrastructure health during the failure window."
+
+    Criteria for "missing root cause":
+    - No clear errors within 30 minutes of failure
+    - All errors are symptoms (timeouts, connection losses)
+    - Errors appear simultaneously across multiple services
+    - Pattern suggests external trigger not internal cause
 
 
     ============================================================================
@@ -104,6 +214,58 @@ class RCAAccelerator(dspy.Signature):
     You can also search for information on Slack:
     - Use `search_slack_messages` to search for error messages or keywords
     - Example: `search_slack_messages('cert-manager secrets not found')`
+
+    ============================================================================
+    EXAMPLE ANALYSIS
+    ============================================================================
+
+    Example Build: Database connection timeouts during tests
+
+    INCORRECT Analysis:
+    "The test failed due to database connection timeouts."
+    Problem: This identifies a symptom, not the root cause. Also, it only provides
+    one root cause without alternatives.
+
+    CORRECT Analysis:
+    1. Timeline construction:
+       - 01:15:05 UTC: OVN controller logs "connection failed to br-int.mgmt"
+       - 01:26:19 UTC: Cinder logs "Can't connect to MySQL server"
+       - 04:38:42 UTC: Tests timeout
+
+    2. Temporal validation:
+       - OVN error at 01:15:05 is 3+ hours before test failure at 04:38:42
+       - ⚠️ QUESTIONABLE: This is >1 hour gap, but there is continuous evidence
+       - Database error at 01:26:19 is also 3+ hours before test failure
+       - However, if errors are continuous throughout, this may be valid
+
+    3. Causal chain:
+       OVN failure (01:15:05) → network connectivity loss →
+       database unreachable (01:26:19) → services non-functional →
+       tests timeout (04:38:42)
+
+    4. Root causes (with alternatives):
+       PRIMARY: OVN controller connection failure at 01:15:05
+       - Earliest independent failure
+       - Explains all subsequent symptoms
+       - Infrastructure layer (Priority 1)
+       - Evidence: Multiple OVN logs show same error
+
+       SECONDARY: Database connectivity loss at 01:26:19
+       - May be symptom of #1, but could also be independent issue
+       - Evidence: Database connection errors in Cinder and Nova logs
+       - Note: If OVN is fixed, this should resolve, but worth investigating
+
+       TERTIARY: Test infrastructure timeout at 04:38:42
+       - Likely symptom, but could be test framework bug
+       - Evidence: Test runner logs show timeout
+       - Note: This is the final symptom, not the root cause
+
+    5. Validation:
+       ✓ Temporal: Primary cause occurred before symptoms (with continuous evidence)
+       ✓ Causality: Network failure explains database unreachability
+       ✓ Independence: No earlier failure explains OVN issue
+       ✓ Consistency: Multiple OVN logs show same error
+       ✓ Alternatives: Provided 3 root causes with clear ranking
 
     ============================================================================
     """
@@ -228,6 +390,107 @@ def make_agent(errors: rcav2.models.errors.Report, worker: Worker, env) -> dspy.
     )
 
 
+def create_temporal_error_timeline(
+    errors: rcav2.models.errors.Report,
+) -> str:
+    """Create a temporal error timeline summary from error logs.
+
+    Attempts to extract timestamps and create a chronological timeline.
+    Returns a formatted string to be added to the job description.
+    """
+    import re
+    from datetime import datetime
+
+    # Common timestamp patterns
+    timestamp_patterns = [
+        # ISO 8601: 2025-10-31T19:15:41Z or 2025-10-31 19:15:41
+        r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})",
+        # RFC3339: 2025-10-31T19:15:41.123Z
+        r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)",
+        # Unix timestamp (milliseconds)
+        r"(\d{13})",
+    ]
+
+    timeline_entries = []
+
+    # Collect all errors with their source
+    for logfile in errors.logfiles:
+        for error in logfile.errors:
+            line = error.line
+            timestamp = None
+            timestamp_str = None
+
+            # Try to extract timestamp
+            for pattern in timestamp_patterns:
+                match = re.search(pattern, line)
+                if match:
+                    timestamp_str = match.group(1)
+                    try:
+                        # Try parsing ISO 8601 formats
+                        if "T" in timestamp_str or " " in timestamp_str:
+                            # Remove timezone if present
+                            clean_ts = timestamp_str.replace("Z", "").split(".")[0]
+                            timestamp = datetime.strptime(clean_ts, "%Y-%m-%d %H:%M:%S")
+                        elif len(timestamp_str) == 13:  # Unix timestamp in ms
+                            timestamp = datetime.fromtimestamp(
+                                int(timestamp_str) / 1000
+                            )
+                        break
+                    except (ValueError, OverflowError):
+                        continue
+
+            # Extract error snippet (first 100 chars)
+            error_snippet = line[:100].strip()
+            if len(line) > 100:
+                error_snippet += "..."
+
+            timeline_entries.append(
+                {
+                    "timestamp": timestamp,
+                    "timestamp_str": timestamp_str,
+                    "source": logfile.source,
+                    "error": error_snippet,
+                }
+            )
+
+    # Sort by timestamp if available
+    timeline_entries.sort(
+        key=lambda x: x["timestamp"] if x["timestamp"] else datetime.min
+    )
+
+    # Build timeline summary
+    timeline_summary = "\n\n## TEMPORAL ERROR TIMELINE (chronological order):\n\n"
+    timeline_summary += "| Timestamp | Source | Error Snippet |\n"
+    timeline_summary += "|-----------|--------|---------------|\n"
+
+    entries_with_ts = [e for e in timeline_entries if e["timestamp"]]
+    entries_without_ts = [e for e in timeline_entries if not e["timestamp"]]
+
+    # Show entries with timestamps first (up to 20 most recent)
+    for entry in entries_with_ts[-20:]:
+        entry_timestamp = entry.get("timestamp")
+        if entry_timestamp and isinstance(entry_timestamp, datetime):
+            ts_str = entry_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            ts_str = str(entry.get("timestamp_str") or "N/A")
+        source = str(entry["source"])[:40]  # type: ignore[index]
+        error_snippet = str(entry["error"])[:60]  # type: ignore[index]
+        timeline_summary += f"| {ts_str} | {source} | {error_snippet} |\n"
+
+    # Show entries without timestamps if any
+    if entries_without_ts:
+        timeline_summary += (
+            f"\n**Note:** {len(entries_without_ts)} errors could not be timestamped.\n"
+        )
+
+    timeline_summary += (
+        "\n**Important:** Focus on errors within 30 minutes of the final failure.\n"
+    )
+    timeline_summary += "Errors hours earlier are likely unrelated transient issues.\n"
+
+    return timeline_summary
+
+
 async def call_agent(
     agent: dspy.ReAct,
     job: rcav2.agent.ansible.Job | None,
@@ -240,6 +503,10 @@ async def call_agent(
     # Add log URL to job description if available
     if log_url := errors.log_url:
         job.description += f"\n\nBuild Log URL: {log_url}"
+
+    # Add temporal error timeline to help with temporal analysis
+    timeline_summary = create_temporal_error_timeline(errors)
+    job.description += timeline_summary
 
     await worker.emit("Calling RCAAccelerator", "progress")
     # errors_count = dict()
