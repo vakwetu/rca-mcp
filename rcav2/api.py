@@ -34,7 +34,7 @@ router = APIRouter()
 
 class RcaState:
     def __init__(self, debug):
-        self.env = Env(debug=True, cookie_path=None)
+        self.env = Env(debug=debug, cookie_path=None)
         rcav2.model.init_dspy()
 
 
