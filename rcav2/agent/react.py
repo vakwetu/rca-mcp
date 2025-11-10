@@ -177,42 +177,132 @@ class RCAAccelerator(dspy.Signature):
 
 
     ============================================================================
-    JIRA TICKET SEARCH (REQUIRED)
+    JIRA TICKET SEARCH (REQUIRED) - MULTI-TIER STRATEGY
     ============================================================================
 
-    Only AFTER identifying all possible root causes, ALWAYS search for related Jira tickets:
+    Only AFTER identifying all possible root causes, ALWAYS search for related Jira tickets.
 
-    1. Search for similar error messages
-       - Extract key error terms and search in Jira
+    **CRITICAL: Use a Multi-Tier Search Approach**
 
-    2. Look for known bugs or issues
-       - Match the failure pattern
+    If a search returns 0 results, automatically try the next tier:
 
-    3. Find recent failures
-       - Reported in the same area or component
+    **Tier 1 - Exact Error Match:**
+    - Extract the exact error message from logs
+    - Search: `text ~ "exact error message"`
+    - Example: `search_jira_issues('text ~ "fatal_signal terminating with signal 15"')`
+    - If 0 results, proceed to Tier 2
 
-    Use `search_jira_issues` with proper JQL syntax:
+    **Tier 2 - Key Terms + Component:**
+    - Extract 2-3 key terms from the error message
+    - Identify the component/service name (e.g., OVN, MySQL, Cinder, Nova)
+    - Search: `text ~ "term1" AND text ~ "term2" AND text ~ "component"`
+    - Example: `search_jira_issues('text ~ "connection failed" AND text ~ "ovn-controller"')`
+    - If 0 results, proceed to Tier 3
 
-    Examples:
-    - search_jira_issues('text ~ "cert-manager secrets not found"')
-    - search_jira_issues('summary ~ "timeout" AND text ~ "openstackcontrolplane"')
+    **Tier 3 - Component + Error Type:**
+    - Search by component and error category
+    - Examples:
+      - `search_jira_issues('summary ~ "OVN" AND (text ~ "timeout" OR text ~ "signal")')`
+      - `search_jira_issues('text ~ "MySQL" AND text ~ "connection" AND text ~ "failed"')`
+    - If 0 results, proceed to Tier 4
 
-    Remember: Use ~ operator with quoted strings for text searches!
+    **Tier 4 - Recent Issues:**
+    - Search for recent issues in the component
+    - Example: `search_jira_issues('component = "OVN" AND created >= -30d ORDER BY created DESC')`
+    - This helps find recently reported issues even if exact error doesn't match
 
-    IMPORTANT: Populate the jira_tickets field in your report with all relevant JIRA tickets.
+    **Query Refinement Rules:**
+    - ALWAYS try at least 2 different query strategies (different tiers)
+    - If Tier 1 returns 0 results, automatically try Tier 2
+    - If Tier 2 returns 0 results, try Tier 3
+    - If Tier 3 returns 0 results, try Tier 4
+    - Don't give up after just one query!
+
+    **JQL Query Syntax:**
+    - Text search: `text ~ "error message"` (quotes required for phrases)
+    - Summary search: `summary ~ "keyword"`
+    - Multiple terms: `text ~ "term1" AND text ~ "term2"`
+    - OR condition: `text ~ "error" OR text ~ "failure"`
+    - Recent issues: `created >= -30d` (last 30 days)
+    - Valid operators: ~ (contains), !~, =, !=, IN, NOT IN
+    - Always use ~ for text searches with quoted strings
+
+    **Result Evaluation:**
+    - Review ALL returned tickets, not just the first one
+    - Check ticket status (Open > In Progress > Closed)
+    - Check ticket description for relevance to your root cause
+    - Include ALL relevant tickets in final report, even if status is Closed
+
+    **CRITICAL: You MUST include ALL relevant JIRA tickets found in your searches**
+    in the `jira_tickets` field of your report. After each successful search, note
+    which tickets were found and ensure they are included before calling `finish`.
 
     For each ticket, include:
     - key: The JIRA ticket key (e.g., "OSPCIX-1234")
     - url: The full URL to the ticket
     - summary: The ticket summary/title
 
+    **After JIRA search:**
+    - If you found relevant JIRA tickets, consider searching Slack to see if there
+      are recent discussions about these tickets: `search_slack_messages('OSPRH-1234')`
+    - If JIRA search returned 0 results, search Slack for recent mentions of the error
+    - Slack often has workarounds or real-time updates not yet in JIRA
+
     ============================================================================
-    SLACK SEARCH
+    SLACK SEARCH (RECOMMENDED)
     ============================================================================
 
-    You can also search for information on Slack:
-    - Use `search_slack_messages` to search for error messages or keywords
-    - Example: `search_slack_messages('cert-manager secrets not found')`
+    After searching JIRA, consider searching Slack for recent discussions,
+    workarounds, or real-time updates about the issue.
+
+    **When to search Slack:**
+    - After finding JIRA tickets (to see if there are recent discussions)
+    - When JIRA tickets are old/closed (to find workarounds)
+    - For infrastructure issues (Slack often has real-time updates)
+    - When you need to know if others have seen this issue recently
+    - After identifying a root cause (to find related discussions)
+
+    **How to use Slack results:**
+    1. Review the top 3-5 most relevant messages from the formatted output
+    2. Extract any workarounds, related JIRA tickets, or insights mentioned
+    3. Include relevant information in your report under "Additional Context from Slack"
+    4. **CRITICAL: Always include the permalink when referencing a Slack message**
+       - Format: "Slack message in #channel-name: 'message text' (Link: https://redhat-internal.slack.com/...)"
+       - Or: "As discussed in Slack (#channel-name): 'insight' - see https://redhat-internal.slack.com/..."
+    5. Reference specific messages using the provided links - include the full permalink URL
+    6. Note if Slack discussions confirm or contradict your root cause analysis
+
+    **CRITICAL: Slack does NOT use JQL syntax!**
+
+    **Use Plain Text Search:**
+    - Remove all JQL operators (`text ~`, `AND`, `OR` with quotes)
+    - Use simple space-separated search terms
+    - Example: `search_slack_messages('fatal_signal OVN')` NOT `search_slack_messages('text ~ "fatal_signal" AND text ~ "OVN"')`
+
+    **Natural Language Queries:**
+    - Use conversational search terms
+    - Example: `search_slack_messages('OVN connection failed error')` instead of technical syntax
+    - Example: `search_slack_messages('MySQL connection timeout')` instead of `text ~ "MySQL" AND text ~ "timeout"`
+    - You can also search for JIRA ticket keys: `search_slack_messages('OSPRH-1234')`
+
+    **Multiple Query Variations:**
+    - If first query returns no results, try different phrasings
+    - Example variations:
+      - `search_slack_messages('OVN fatal signal')`
+      - `search_slack_messages('OVN terminating error')`
+      - `search_slack_messages('OVN connection issue')`
+
+    **Examples:**
+    - ✅ CORRECT: `search_slack_messages('cert-manager secrets not found')`
+    - ✅ CORRECT: `search_slack_messages('OVN fatal signal')`
+    - ✅ CORRECT: `search_slack_messages('OSPRH-1234')` (search for JIRA ticket)
+    - ❌ WRONG: `search_slack_messages('text ~ "cert-manager" AND text ~ "secrets"')` (JQL syntax doesn't work in Slack)
+
+    **Result Format:**
+    - Slack search returns formatted text with messages, channels, and links
+    - Each result includes: channel name, message preview, and permalink
+    - **ALWAYS include the permalink URL when referencing a Slack message in your report**
+    - Example: "Slack discussion in #rhos-prodchain-discuss: 'insight text' (Link: https://redhat-internal.slack.com/archives/...)"
 
     ============================================================================
     EXAMPLE ANALYSIS
@@ -293,15 +383,31 @@ def make_agent(errors: rcav2.models.errors.Report, worker: Worker, env) -> dspy.
         Use the 'key' field from results with get_jira_issue for more details.
         If JIRA_RCA_PROJECT is configured, automatically filters to that project.
 
-        JQL Query Syntax - IMPORTANT:
+        **Multi-Tier Search Strategy (RECOMMENDED):**
+        If a query returns 0 results, try a different tier:
+
+        Tier 1 (Exact): text ~ "exact error message"
+        Tier 2 (Key Terms): text ~ "term1" AND text ~ "term2" AND text ~ "component"
+        Tier 3 (Component + Type): summary ~ "Component" AND (text ~ "error_type1" OR text ~ "error_type2")
+        Tier 4 (Recent): component = "Component" AND created >= -30d ORDER BY created DESC
+
+        **JQL Query Syntax - IMPORTANT:**
         - Text search: text ~ "error message" (quotes required for phrases)
         - Summary search: summary ~ "keyword"
         - Description search: description ~ "error text"
         - Multiple terms: summary ~ "cert-manager" AND text ~ "timeout"
         - OR condition: summary ~ "error" OR description ~ "failure"
+        - Recent issues: created >= -30d (last 30 days)
+        - Order by date: ORDER BY created DESC
 
-        Valid operators: ~ (contains), !~, =, !=, IN, NOT IN
-        Always use ~ for text searches with quoted strings."""
+        **Valid operators:** ~ (contains), !~, =, !=, IN, NOT IN
+        **Always use ~ for text searches with quoted strings.**
+
+        **Examples:**
+        - search_jira_issues('text ~ "fatal_signal terminating with signal 15"')
+        - search_jira_issues('text ~ "connection failed" AND text ~ "ovn-controller"')
+        - search_jira_issues('summary ~ "OVN" AND (text ~ "timeout" OR text ~ "signal")')
+        - search_jira_issues('component = "OVN" AND created >= -30d ORDER BY created DESC')"""
         if not env.jira:
             await worker.emit(
                 "JIRA client not available. Set JIRA_URL, JIRA_API_KEY and JIRA_RCA_PROJECTS",
@@ -315,19 +421,51 @@ def make_agent(errors: rcav2.models.errors.Report, worker: Worker, env) -> dspy.
         )
         return env.jira.search_jira_issues(query, max_results)
 
-    async def search_slack_messages(
-        query: str, count: int | None = 20
-    ) -> list[dict[str, str | None]]:
-        """Searches slack messages.
-        Returns list of messages with text, user, permalink, and channel.
-        Returns 20 results by default, for more results set count.
+    async def search_slack_messages(query: str, count: int | None = 20) -> str:
+        """Searches slack messages using plain text search.
+
+        Returns formatted text with Slack messages that can be easily
+        read and used by the LLM.
+
+        **When to use:**
+        - After identifying a root cause, search for recent discussions
+        - When JIRA tickets are old/closed, check Slack for workarounds
+        - For infrastructure issues, Slack often has real-time updates
+        - When you need to know if others have seen this issue recently
+
+        **How to use results:**
+        - Review the top 3-5 most relevant messages
+        - Extract workarounds, related JIRA tickets, or insights
+        - Include relevant information in your report
+        - **CRITICAL: Always include the permalink URL when referencing a Slack message**
+          - Example: "Slack message in #channel: 'insight' (Link: https://redhat-internal.slack.com/archives/...)"
+        - Reference specific messages using the provided links - copy the full permalink URL
+
+        **CRITICAL: Slack does NOT use JQL syntax!**
+
+        **Use Plain Text:**
+        - Remove all JQL operators (text ~, AND, OR with quotes)
+        - Use simple space-separated search terms
+        - Example: 'fatal_signal OVN' NOT 'text ~ "fatal_signal" AND text ~ "OVN"'
+
+        **Natural Language:**
+        - Use conversational search terms
+        - Example: 'OVN connection failed error' instead of technical syntax
+
+        **Examples:**
+        - ✅ CORRECT: search_slack_messages('cert-manager secrets not found')
+        - ✅ CORRECT: search_slack_messages('OVN fatal signal')
+        - ✅ CORRECT: search_slack_messages('MySQL connection timeout')
+        - ❌ WRONG: search_slack_messages('text ~ "cert-manager" AND text ~ "secrets"')
+
+        Returns formatted text with Slack messages sorted by relevance.
         """
         if not env.slack:
             await worker.emit(
                 "Slack client not available. Set SLACK_API_KEY and SLACK_SEARCH_CHANNELS",
                 "warning",
             )
-            return []
+            return "Slack client not available. Set SLACK_API_KEY and SLACK_SEARCH_CHANNELS environment variables."
 
         await worker.emit(
             f"Searching slack with query: {query}, count: {count}",
