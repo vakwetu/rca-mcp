@@ -52,7 +52,7 @@ async def do_watch(watcher):
     while True:
         event = await watcher.recv()
         yield f"data: {json.dumps(event)}\n\n"
-        if event == "status":
+        if event[0] == "status":
             break
 
 
