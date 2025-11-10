@@ -142,10 +142,8 @@ export function RcaComponent(
           "Failed to connect to the server. Please ensure the backend is running and accessible.",
         );
         setIsLoading(false);
-        if (eventSourceRef.current) {
-          eventSourceRef.current.close();
-          eventSourceRef.current = null;
-        }
+        eventSource.close();
+        eventSource = null;
       };
     } catch (err) {
       console.error("RCA failed", err);
